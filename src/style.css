@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::backdrop{
+  background-color: #00000066;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  width: 100vw;
+  min-height: 100vh;
+  padding: 20px;
+  gap: 20px;
+}
+
+/* El botón tiene el nombre por defecto */
+.trans-hero {
+  view-transition-name: button-modal;
+}
+
+/* Cuando el modal se abre, el navegador lo captura */
+dialog[open] {
+  view-transition-name: button-modal;
+}
+
+/* Definimos la suavidad del movimiento */
+::view-transition-group(button-modal) {
+  animation-duration: 400ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  /* No necesitamos keyframes manuales para el tamaño, 
+     el navegador lo hace por defecto si no lo bloqueamos */
+}
+
+/* Evitamos que el contenido se estire de forma fea (letras deformadas) */
+::view-transition-old(button-modal),
+::view-transition-new(button-modal) {
+  /* Hacemos que el contenido mantenga su proporción mientras el contenedor crece */
+  height: 100%;
+  width: 100%;
+  object-fit: contain; 
+  /* "none" evita que el texto se estire como chicle durante la animación */
+}
+
+/* Si quieres un efecto de fundido suave mientras crece: */
+::view-transition-old(button-modal) {
+  animation: 500ms fade-out both;
+}
+
+::view-transition-new(button-modal) {
+  animation: 200ms delay-fade-in 150ms both;
+}
+
+@keyframes delay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
