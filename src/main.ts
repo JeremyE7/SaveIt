@@ -3,14 +3,12 @@ import { registerSW } from 'virtual:pwa-register'
 
 registerSW({ immediate: true })
 
-async function solicitarPermiso() {
-  const permiso = await Notification.requestPermission();
-  if (permiso === 'granted') {
-    console.log('¡Tenemos permiso para notificar!');
-  } else {
-    console.error('El usuario rechazó las notificaciones');
-  }
-}
+const $ = <T extends Element>(query: string) =>
+  document.querySelector(query) as T 
+
+const $modal = $<HTMLDialogElement>('#addExpenseModal')
+const $button = $<HTMLButtonElement>('#agregar-gasto')
+const $cancelBtn = $modal?.querySelector('[data-close]') as HTMLButtonElement | null
 
 // function enviarNotificacion() {
 //   if (Notification.permission === 'granted') {
@@ -21,40 +19,45 @@ async function solicitarPermiso() {
 //   }
 // }
 
-function openModal(modalId: string) {
-  console.log('Abriendo modal:', modalId);
-  const modal = document.getElementById(modalId) as HTMLDialogElement;
-  if (modal) {
-    modal.showModal();
+const withTransition = (cb: () => void) => {
+  if (document.startViewTransition) {
+    document.startViewTransition(cb)
+  } else {
+    cb()
   }
-  return modal
 }
 
+const openModal = () => {
+  withTransition(() => {
+    $button.classList.remove('trans-hero')
+    $modal.showModal()
+  })
+}
+
+const closeModal = () => {
+  withTransition(() => {
+    $modal.close()
+    $button.classList.add('trans-hero')
+  })
+}
+
+async function solicitarPermiso() {
+  const permiso = await Notification.requestPermission()
+  if (permiso === 'granted') {
+    console.log('¡Tenemos permiso para notificar!')
+  } else {
+    console.error('El usuario rechazó las notificaciones')
+  }
+}
 
 function loadButtons() {
-  const button = document.querySelector('#agregar-gasto');
-  button?.addEventListener('click', () => {
-    // La transición de vista funciona mejor si el cambio de estado es claro
-    if (document.startViewTransition) {
-      document.startViewTransition(() => {
-        button.classList.remove('trans-hero');
-        const modal = openModal('addExpenseModal');
-        if(modal){
-          modal.addEventListener('close', () => {
-            button.classList.add('trans-hero');
-          });
-        }
-      });
-    } else {
-      openModal('addExpenseModal');
-    }
-  });
+  $button?.addEventListener('click', openModal)
+  $cancelBtn?.addEventListener('click', closeModal)
 }
 
-const initApp = async () => {
-
-  solicitarPermiso();
-  loadButtons();
+async function initApp() {
+  solicitarPermiso()
+  loadButtons()
 }
 
-initApp();
+initApp()

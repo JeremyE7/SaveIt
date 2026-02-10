@@ -59,17 +59,27 @@ dialog[open] {
 
 /* Si quieres un efecto de fundido suave mientras crece: */
 ::view-transition-old(button-modal) {
-  animation: 500ms fade-out both;
+  animation: 300ms fade-out both;
 }
 
 ::view-transition-new(button-modal) {
-  animation: 200ms delay-fade-in 150ms both;
+  animation: 200ms delay-fade-in 150ms both, 400ms bounce-stretch 100ms both;
 }
 
 @keyframes delay-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+@keyframes bounce-stretch {
+  0%   { scale: 1; }
+  25% { scale: 1.03 0.91; rotate: -2deg; }
+  45%  { scale: 0.94 1.00; }
+  65%  { scale: 1.00 0.96; }
+  85%  { scale: 0.992 1.00; }
+  100% { scale: 1; }
+}
+
 
 @keyframes fade-out {
   from { opacity: 1; }
