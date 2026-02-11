@@ -1,4 +1,8 @@
-import { getExpenses } from "../features/expenses";
+import {
+  drawExpenses,
+  getFilteredExpenses,
+  resetFilters,
+} from "../features/expenses";
 import { categories } from "../types/Categories";
 import { formatDateTime } from "../utils/general";
 
@@ -34,7 +38,8 @@ export const loadCategoryOptions = () => {
 };
 
 export const loadExpenses = () => {
-  const expenses = getExpenses();
+  const expenses = getFilteredExpenses();
+  $expenseList.innerHTML = "";
   expenses.forEach((expense) => {
     const listItem = document.createElement("li");
     const textCategoryName = categories[expense.category].label;
@@ -55,8 +60,18 @@ export const loadExpenses = () => {
 
     $expenseList.appendChild(listItem);
   });
+  drawExpenses();
 };
 
+export const hideButton = () => {
+  $limpiarFiltros.classList.add("hidden");
+};
+
+export const showButton = () => {
+  $limpiarFiltros.classList.remove("hidden");
+};
+
+export const $limpiarFiltros = $<HTMLButtonElement>("#limpiar-filtros");
 export const $selectCategory = $<HTMLSelectElement>("#expense-category");
 export const $formExpense = $<HTMLFormElement>("#addExpenseForm");
 export const $expenseList = $<HTMLUListElement>("#expenses-list");

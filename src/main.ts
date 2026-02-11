@@ -3,9 +3,8 @@ import { registerSW } from "virtual:pwa-register";
 import { solicitarPermiso } from "./utils/mobile";
 import { loadButtons } from "./dom/loadButtons";
 import { loadKeys } from "./dom/loadKeys";
-import { getExpenses } from "./features/expenses";
 import { loadCategoryOptions, loadExpenses } from "./dom/htmlElements";
-import { generateChart } from "./features/graphs";
+import { resetFilters } from "./features/expenses";
 
 registerSW({ immediate: false });
 
@@ -14,9 +13,8 @@ async function initApp() {
   loadButtons();
   loadKeys();
   loadCategoryOptions();
+  resetFilters();
   loadExpenses();
-  getExpenses();
-  generateChart();
 }
 
 initApp();

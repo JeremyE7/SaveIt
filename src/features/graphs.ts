@@ -1,25 +1,76 @@
-import uPlot from "uplot";
-import "uplot/dist/uPlot.min.css";
+import { Chart, PieController, ArcElement, Tooltip, Legend } from "chart.js";
+import { categories, type Category } from "../types/Categories";
+import { filterExpenses } from "./expenses";
+import { showButton } from "../dom/htmlElements";
 
-export const generateChart = (): uPlot => {
-  const target = document.getElementById("chart") as HTMLDivElement;
+Chart.register(PieController, ArcElement, Tooltip, Legend);
 
-  const options: uPlot.Options = {
-    width: 600,
-    height: 300,
-    series: [
-      {},
-      {
-        label: "Ventas",
-        stroke: "blue",
+let chartInstance: Chart | null = null;
+
+export const generatePieChart = (
+  labels: string[],
+  data: number[],
+  colors: string[],
+): Chart => {
+  const canvas = document.getElementById("chart") as HTMLCanvasElement;
+
+  if (chartInstance) {
+    chartInstance.data.labels = labels;
+    chartInstance.data.datasets[0].data = data;
+    chartInstance.update();
+    return chartInstance;
+  }
+
+  chartInstance = new Chart(canvas, {
+    type: "pie",
+    data: {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: colors,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      onClick: (_, elements, chart) => {
+        if (!elements.length) return;
+        showButton();
+
+        const index = elements[0].index;
+
+        const label = chart.data.labels?.[index];
+        const filteredData = filterExpenses(label as unknown as Category);
+
+        console.log(filteredData);
       },
-    ],
-  };
+      plugins: {
+        legend: {
+          position: "bottom",
+          align: "center",
+          labels: {
+            generateLabels: (chart) => {
+              const data = chart.data;
 
-  const data: uPlot.AlignedData = [
-    [1, 2, 3, 4, 5],
-    [10, 15, 13, 20, 18],
-  ];
+              if (!data.labels) return [];
 
-  return new uPlot(options, data, target);
+              return data.labels.map((label, i) => ({
+                text: categories[label as keyof typeof categories].label,
+                fillStyle: categories[label as keyof typeof categories].color,
+                fontColor: categories[label as keyof typeof categories].color,
+                hidden: false,
+                index: i,
+              }));
+            },
+            usePointStyle: true,
+            padding: 20,
+          },
+        },
+      },
+    },
+  });
+
+  return chartInstance;
 };
