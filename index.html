@@ -1,53 +1,98 @@
 <!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="theme-color" content="#fbbf24" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta
+            name="apple-mobile-web-app-status-bar-style"
+            content="black-translucent"
+        />
+        <meta name="apple-mobile-web-app-title" content="SaveIt" />
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="theme-color" content="#fbbf24">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="SaveIt">
+        <link rel="manifest" href="/manifest.webmanifest" />
 
-  <link rel="manifest" href="/manifest.webmanifest">
+        <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+        <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link href="src/style.css" rel="stylesheet" />
+        <title>saveit</title>
+    </head>
 
-  <link rel="apple-touch-icon" href="/pwa-192x192.png">
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="src/style.css" rel="stylesheet">
-  <title>saveit</title>
-</head>
-
-<body class="bg-neutral-950 text-white p-6 flex flex-col items-center gap-8">
-
-  <h1 class="text-4xl md:text-6xl font-black text-center tracking-tighter text-balance">
-    SaveIt <span class="text-amber-400">$</span>
-  </h1>
-
-  <button id="agregar-gasto"
-    class="trans-hero rounded-2xl px-6 py-3 bg-red-600 hover:bg-red-500 font-bold shadow-lg shadow-red-900/20 transition-all cursor-pointer active:scale-95"
+    <body
+        class="bg-neutral-950 text-white p-6 flex flex-col items-center gap-8"
     >
-    Agregar Gasto
-  </button>
+        <h1
+            class="text-4xl md:text-6xl font-black text-center tracking-tighter text-balance"
+        >
+            SaveIt <span class="text-amber-400">$</span>
+        </h1>
 
-  <dialog id="addExpenseModal"
-    class="m-auto rounded-3xl p-8 backdrop:backdrop-blur-sm bg-neutral-900/80 border border-white/10 shadow-2xl text-white w-[90%] max-w-md">
+        <button
+            id="agregar-gasto"
+            class="trans-hero rounded-2xl px-6 py-3 bg-red-600 hover:bg-red-500 font-bold shadow-lg shadow-red-900/20 transition-all cursor-pointer active:scale-95"
+        >
+            Agregar Gasto
+        </button>
 
-    <div class="flex flex-col gap-4" >
-      <h2 class="text-2xl font-bold">Nuevo Gasto</h2>
-      <p class="text-neutral-400">Ingresa los detalles de tu compra.</p>
+        <ul id="expenses-list"></ul>
 
-      <input type="number" placeholder="0.00" autofocus
-        class="bg-neutral-800 border border-neutral-700 p-4 rounded-xl focus:ring-2 focus:ring-amber-400 outline-none text-2xl font-mono">
+        <dialog
+            id="addExpenseModal"
+            class="m-auto rounded-3xl p-8 backdrop:backdrop-blur-sm bg-neutral-900/80 border border-white/10 shadow-2xl text-white w-[90%] max-w-md"
+        >
+            <form id="addExpenseForm">
+                <div class="flex flex-col gap-4">
+                    <h2 class="text-2xl font-bold">Nuevo Gasto</h2>
+                    <p class="text-neutral-400">
+                        Ingresa los detalles de tu compra.
+                    </p>
 
-      <div class="flex gap-3 mt-4">
-        <button data-close
-          class="flex-1 py-3 font-semibold text-neutral-400">Cancelar</button>
-        <button class="flex-1 py-3 bg-amber-400 text-black font-bold rounded-xl">Guardar</button>
-      </div>
-    </div>
-  </dialog>
+                    <label for="expense-name">Detalles del Gasto:</label>
+                    <input
+                        type="text"
+                        id="expense-name"
+                        placeholder="Detalles del Gasto"
+                        autofocus
+                        name="details"
+                        class="bg-neutral-800 border border-neutral-700 p-4 rounded-xl focus:ring-2 focus:ring-amber-400 outline-none text-sm font-mono"
+                    />
 
-</body>
-<script type="module" src="src/main.ts"></script>
+                    <label for="expense-category">Categoría:</label>
+                    <select
+                        id="expense-category"
+                        name="category"
+                        class="bg-neutral-800 border border-neutral-700 p-4 rounded-xl focus:ring-2 focus:ring-amber-400 outline-none text-sm font-mono"
+                    ></select>
 
+                    <label for="expense-amount">Monto:</label>
+                    <input
+                        type="number"
+                        placeholder="0.00"
+                        autofocus
+                        name="amount"
+                        class="bg-neutral-800 border border-neutral-700 p-4 rounded-xl focus:ring-2 focus:ring-amber-400 outline-none text-sm font-mono"
+                    />
+
+                    <div class="flex gap-3 mt-4">
+                        <button
+                            data-close
+                            type="button"
+                            class="flex-1 py-3 font-semibold text-neutral-400 hover:scale-105 hover:bg-neutral-700 transition-all rounded-2xl"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            data-save
+                            type="submit"
+                            class="flex-1 py-3 bg-amber-400 text-black font-bold rounded-xl hover:scale-105 hover:bg-amber-500 transition-all"
+                        >
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </dialog>
+    </body>
+    <script type="module" src="src/main.ts"></script>
 </html>
