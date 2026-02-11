@@ -1,5 +1,6 @@
 import { getExpenses } from "../features/expenses";
 import { categories } from "../types/Categories";
+import { formatDateTime } from "../utils/general";
 
 export const $ = <T extends Element>(query: string) =>
   document.querySelector(query) as T;
@@ -37,7 +38,21 @@ export const loadExpenses = () => {
   expenses.forEach((expense) => {
     const listItem = document.createElement("li");
     const textCategoryName = categories[expense.category].label;
-    listItem.textContent = `${expense.amount} - ${textCategoryName}`;
+    const h3 = document.createElement("h3");
+    const small = document.createElement("small");
+    const p = document.createElement("p");
+    const span = document.createElement("span");
+    const strong = document.createElement("strong");
+    h3.textContent = textCategoryName + ": ";
+    strong.textContent = expense.amount.toString() + " $";
+    span.appendChild(h3);
+    span.appendChild(strong);
+    small.textContent = formatDateTime(expense.date);
+    p.textContent = expense.detail;
+    listItem.appendChild(span);
+    listItem.appendChild(small);
+    listItem.appendChild(p);
+
     $expenseList.appendChild(listItem);
   });
 };

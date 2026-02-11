@@ -5,6 +5,7 @@ import { loadButtons } from "./dom/loadButtons";
 import { loadKeys } from "./dom/loadKeys";
 import { getExpenses } from "./features/expenses";
 import { loadCategoryOptions, loadExpenses } from "./dom/htmlElements";
+import { generateChart } from "./features/graphs";
 
 registerSW({ immediate: false });
 
@@ -15,6 +16,7 @@ async function initApp() {
   loadCategoryOptions();
   loadExpenses();
   getExpenses();
+  generateChart();
 }
 
 initApp();

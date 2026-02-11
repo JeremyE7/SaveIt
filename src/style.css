@@ -1,18 +1,74 @@
 @import "tailwindcss";
 
 :root {
-    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-    line-height: 1.5;
-    font-weight: 400;
-
-    color-scheme: light dark;
-    color: rgba(255, 255, 255, 0.87);
-    background-color: #222222;
-
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    --font-sans:
+        ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+        "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-mono:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+    --color-red-200: oklch(88.5% 0.062 18.334);
+    --color-red-500: oklch(63.7% 0.237 25.331);
+    --color-yellow-200: oklch(94.5% 0.129 101.54);
+    --color-green-200: oklch(92.5% 0.084 155.995);
+    --color-blue-200: oklch(88.2% 0.059 254.128);
+    --color-pink-200: oklch(89.9% 0.061 343.231);
+    --color-gray-200: oklch(92.8% 0.006 264.531);
+    --color-black: #000;
+    --color-white: #fff;
+    --spacing: 0.25rem;
+    --text-xs: 0.75rem;
+    --text-xs--line-height: calc(1 / 0.75);
+    --text-sm: 0.875rem;
+    --text-sm--line-height: calc(1.25 / 0.875);
+    --text-base: 16px;
+    --text-base--line-height: 1.5;
+    --text-lg: 1.125rem;
+    --text-lg--line-height: calc(1.75 / 1.125);
+    --text-xl: 1.25rem;
+    --text-xl--line-height: calc(1.75 / 1.25);
+    --text-2xl: 1.5rem;
+    --text-2xl--line-height: calc(2 / 1.5);
+    --font-weight-normal: 400;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --leading-tight: 1.25;
+    --leading-relaxed: 1.625;
+    --radius-sm: 0.25rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
+    --default-transition-duration: 0.15s;
+    --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+    --color-primary: #121212;
+    --color-body: #fff;
+    --color-border: #eaeaea;
+    --color-light: #f6f6f6;
+    --color-dark: #040404;
+    --color-text: #444;
+    --color-text-dark: #040404;
+    --color-text-light: #717171;
+    --color-darkmode-primary: #fff;
+    --color-darkmode-body: #1c1c1c;
+    --color-darkmode-border: #3e3e3e;
+    --color-darkmode-light: #222;
+    --color-darkmode-text: #b4afb6;
+    --color-darkmode-text-dark: #fff;
+    --color-darkmode-text-light: #b4afb6;
+    --font-primary: Heebo, sans-serif;
+    --font-secondary: Signika, sans-serif;
+    --text-base-sm: 12.8px;
+    --text-h6: 1.2rem;
+    --text-h5: 1.44rem;
+    --text-h4: 1.728rem;
+    --text-h3: 2.0736rem;
+    --text-h3-sm: 1.86624rem;
+    --text-h2: 2.48832rem;
+    --text-h2-sm: 2.23949rem;
+    --text-h1: 2.98598rem;
+    --text-h1-sm: 2.68739rem;
 }
 
 ::backdrop {
@@ -22,11 +78,12 @@
 body {
     margin: 0;
     display: flex;
-    justify-content: center;
     width: 100vw;
     min-height: 100vh;
-    padding: 20px;
     gap: 20px;
+    background: var(--color-darkmode-body);
+    align-items: center;
+    font-family: var(--font-mono);
 }
 
 /* El botón tiene el nombre por defecto */
@@ -108,12 +165,50 @@ dialog[open] {
     }
 }
 
+nav {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    background: var(--color-darkmode-light);
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#chart {
+    background-color: var(--color-darkmode-light);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+ul {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 90%;
+    margin-top: 20px;
+}
+
 li {
     list-style-type: none;
     padding: 20px;
-    width: 400px;
-    background-color: #222;
+    width: 90%;
+    background: var(--color-darkmode-light);
     border-radius: 20px;
     margin-bottom: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+li span {
+    display: flex;
+    gap: 10px;
+    & strong {
+        font-weight: bold;
+        color: #fbc856;
+    }
 }
