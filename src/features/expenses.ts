@@ -2,13 +2,11 @@ import type { Expense } from "../types/Expense";
 import {
   $expenseList,
   $formExpense,
-  addViewTransitionNameToAnElement,
   addViewTransitionNameToVariousElements,
   addVisualExpense,
   deleteVisualExpense,
   hideButton,
   loadExpenses,
-  removeViewTransitionNameFromAnElement,
   removeViewTransitionNameFromVariousElements,
 } from "../dom/htmlElements";
 import {
