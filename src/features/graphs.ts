@@ -17,6 +17,8 @@ export const generatePieChart = (
   if (chartInstance) {
     chartInstance.data.labels = labels;
     chartInstance.data.datasets[0].data = data;
+    chartInstance.data.datasets[0].backgroundColor = colors;
+    chartInstance.data.datasets[0].borderColor = colors;
     chartInstance.update();
     return chartInstance;
   }

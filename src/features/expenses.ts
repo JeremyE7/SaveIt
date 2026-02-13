@@ -1,5 +1,16 @@
 import type { Expense } from "../types/Expense";
-import { $formExpense, hideButton, loadExpenses } from "../dom/htmlElements";
+import {
+  $expenseList,
+  $formExpense,
+  addViewTransitionNameToAnElement,
+  addViewTransitionNameToVariousElements,
+  addVisualExpense,
+  deleteVisualExpense,
+  hideButton,
+  loadExpenses,
+  removeViewTransitionNameFromAnElement,
+  removeViewTransitionNameFromVariousElements,
+} from "../dom/htmlElements";
 import {
   getDataFromLocalStorage,
   setDataToLocalStorage,
@@ -7,6 +18,28 @@ import {
 import { categories, type Category } from "../types/Categories";
 import { closeModal } from "./modal";
 import { generatePieChart } from "./graphs";
+import { withTransition } from "../utils/viewTransitions";
+
+let expenseToEdit: Expense | null = null;
+
+export const setExpenseToEdit = (expense: Expense | null) => {
+  expenseToEdit = expense;
+};
+
+export const getExpenseToEdit = () => {
+  return expenseToEdit;
+};
+
+export const editExpense = (expense: Expense) => {
+  const expenses = getAllExpenses();
+  const index = expenses.findIndex((e) => e.id === expense.id);
+  if (index !== -1) {
+    expenses[index] = expense;
+    setExpenseToEdit(null);
+    setDataToLocalStorage<Expense[]>("expenses", expenses);
+    loadExpenses();
+  }
+};
 
 export const getAllExpenses = () => {
   const expenses = getDataFromLocalStorage<Expense[]>("expenses");
@@ -32,32 +65,41 @@ export const resetFilters = () => {
 
 export const addExpense = (expense: Expense) => {
   const expenses = getAllExpenses();
-  expenses.push(expense);
+  expenses.unshift(expense);
   setDataToLocalStorage<Expense[]>("expenses", expenses);
 };
 
 export const saveExpense = (event: SubmitEvent) => {
   event.stopImmediatePropagation();
   event.preventDefault();
+
   if (!$formExpense) {
     console.error("Formulario no encontrado");
     return;
   }
+  if (expenseToEdit) {
+    editExpense(expenseToEdit);
+    return;
+  }
+
   const formData = new FormData($formExpense);
 
   const newExpense = {
     amount: parseFloat(formData.get("amount") as string),
     category: formData.get("category") as Category,
-    detail: formData.get("details") as string,
+    detail: formData.get("detail") as string,
     date: new Date().toISOString(),
     id: crypto.randomUUID(),
   };
 
-  addExpense(newExpense);
-  console.log(newExpense);
-  resetFilters();
+  const liItems = Array.from($expenseList.children) as HTMLElement[];
+  addViewTransitionNameToVariousElements(liItems, "list-item");
   closeModal();
-  loadExpenses();
+  addExpense(newExpense);
+  withTransition(() => {
+    addVisualExpense(newExpense);
+  });
+  removeViewTransitionNameFromVariousElements(liItems);
 };
 
 export const filterExpenses = (category: Category) => {
@@ -69,9 +111,24 @@ export const filterExpenses = (category: Category) => {
   loadExpenses();
 };
 
+export const deleteExpense = (id: string) => {
+  const expenses = getAllExpenses();
+  const filteredExpenses = expenses.filter((e) => e.id !== id);
+  setDataToLocalStorage<Expense[]>("expenses", filteredExpenses);
+  setDataToLocalStorage<Expense[]>("filteredExpenses", filteredExpenses);
+  const expense = expenses.find((e) => e.id === id);
+  if (!expense) return;
+  const liItems = Array.from($expenseList.children) as HTMLElement[];
+  addViewTransitionNameToVariousElements(liItems, "list-item");
+  withTransition(() => {
+    deleteVisualExpense(expense);
+  });
+  removeViewTransitionNameFromVariousElements(liItems);
+};
+
 export const drawExpenses = () => {
   const expenses = getAllExpenses();
-
+  console.log(expenses);
   const labels: string[] = [];
   const data: number[] = [];
   const colors: string[] = [];
@@ -88,5 +145,6 @@ export const drawExpenses = () => {
     }
   });
 
+  console.log(labels, data, colors);
   generatePieChart(labels, data, colors);
 };

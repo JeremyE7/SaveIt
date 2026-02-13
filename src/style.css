@@ -126,6 +126,32 @@ dialog[open] {
         400ms bounce-stretch 100ms both;
 }
 
+::view-transition-group(ul) {
+    animation: 300ms pushedToBottom both;
+}
+
+::view-transition-new(list) {
+    animation: 300ms appearFromLeft both;
+}
+
+@keyframes pushedToBottom {
+    0% {
+        transform: translateY(0);
+    }
+    100% {
+        transform: translateY(10%);
+    }
+}
+
+@keyframes appearFromLeft {
+    0% {
+        transform: translateX(-500%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
 @keyframes delay-fade-in {
     from {
         opacity: 0;
@@ -193,16 +219,43 @@ ul {
     gap: 5px;
     width: 90%;
     margin-top: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.4) transparent;
 }
 
 li {
     list-style-type: none;
     padding: 20px;
-    width: 90%;
+    width: 95%;
     background: var(--color-darkmode-light);
     border-radius: 20px;
+    display: flex;
+    justify-content: space-between;
     margin-bottom: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+li div:last-child {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+
+    & button {
+        padding: 5px;
+        border-radius: 10px;
+        transition:
+            background-color 0.3s ease,
+            transform 0.3s ease,
+            border-color 0.3s ease;
+    }
+
+    & button:hover {
+        background-color: var(--color-darkmode-text);
+        color: var(--color-darkmode-light);
+        border-color: var(--color-darkmode-border);
+        transform: scale(1.02);
+    }
 }
 
 li span {

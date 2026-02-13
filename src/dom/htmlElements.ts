@@ -1,8 +1,11 @@
 import {
+  deleteExpense,
   drawExpenses,
   getFilteredExpenses,
-  resetFilters,
+  setExpenseToEdit,
 } from "../features/expenses";
+import { openModal } from "../features/modal";
+import type { Expense } from "../types/Expense";
 import { categories } from "../types/Categories";
 import { formatDateTime } from "../utils/general";
 
@@ -37,30 +40,66 @@ export const loadCategoryOptions = () => {
   $selectCategory.innerHTML = categoryOptions;
 };
 
+export const createExpenseElement = (expense: Expense) => {
+  const listItem = document.createElement("li");
+  listItem.setAttribute("data-id", expense.id.toString());
+  const div1 = document.createElement("div");
+  const div2 = document.createElement("div");
+  const textCategoryName = categories[expense.category].label;
+  const h3 = document.createElement("h3");
+  const small = document.createElement("small");
+  const p = document.createElement("p");
+  const span = document.createElement("span");
+  const strong = document.createElement("strong");
+  h3.textContent = textCategoryName + ": ";
+  strong.textContent = expense.amount.toString() + " $";
+  span.appendChild(h3);
+  span.appendChild(strong);
+  small.textContent = formatDateTime(expense.date);
+  p.textContent = expense.detail;
+  div1.appendChild(span);
+  div1.appendChild(small);
+  div1.appendChild(p);
+  listItem.appendChild(div1);
+
+  const buttonEdit = document.createElement("button");
+  buttonEdit.textContent = "Editar";
+  buttonEdit.addEventListener("click", () => {
+    setExpenseToEdit(expense);
+    openModal(listItem, expense);
+  });
+  const buttonDelete = document.createElement("button");
+  buttonDelete.textContent = "Eliminar";
+  buttonDelete.addEventListener("click", () => {
+    deleteExpense(expense.id);
+  });
+  div2.appendChild(buttonEdit);
+  div2.appendChild(buttonDelete);
+  listItem.appendChild(div2);
+  return listItem;
+};
+
 export const loadExpenses = () => {
   const expenses = getFilteredExpenses();
   $expenseList.innerHTML = "";
   expenses.forEach((expense) => {
-    const listItem = document.createElement("li");
-    const textCategoryName = categories[expense.category].label;
-    const h3 = document.createElement("h3");
-    const small = document.createElement("small");
-    const p = document.createElement("p");
-    const span = document.createElement("span");
-    const strong = document.createElement("strong");
-    h3.textContent = textCategoryName + ": ";
-    strong.textContent = expense.amount.toString() + " $";
-    span.appendChild(h3);
-    span.appendChild(strong);
-    small.textContent = formatDateTime(expense.date);
-    p.textContent = expense.detail;
-    listItem.appendChild(span);
-    listItem.appendChild(small);
-    listItem.appendChild(p);
-
-    $expenseList.appendChild(listItem);
+    const listItem = createExpenseElement(expense);
+    $expenseList.prepend(listItem);
   });
   drawExpenses();
+};
+
+export const addVisualExpense = (expense: Expense) => {
+  $expenseList.prepend(createExpenseElement(expense));
+  drawExpenses();
+};
+
+export const deleteVisualExpense = (expense: Expense) => {
+  const listItem = $expenseList.querySelector(`[data-id="${expense.id}"]`);
+  if (listItem) {
+    listItem.remove();
+    drawExpenses();
+  }
 };
 
 export const hideButton = () => {
@@ -69,6 +108,39 @@ export const hideButton = () => {
 
 export const showButton = () => {
   $limpiarFiltros.classList.remove("hidden");
+};
+
+export const addViewTransitionNameToAnElement = (
+  element: HTMLElement,
+  name: string,
+) => {
+  element.style.viewTransitionName = name;
+};
+
+export const removeViewTransitionNameFromAnElement = (element: HTMLElement) => {
+  setTimeout(() => {
+    element.style.viewTransitionName = "";
+  }, 500);
+};
+
+export const addViewTransitionNameToVariousElements = (
+  elements: HTMLElement[],
+  name: string,
+) => {
+  elements.forEach((element, index) => {
+    console.log("adding view transition name to element", element);
+    addViewTransitionNameToAnElement(element, name + "-" + index);
+  });
+};
+
+export const removeViewTransitionNameFromVariousElements = (
+  elements: HTMLElement[],
+) => {
+  setTimeout(() => {
+    elements.forEach((element) => {
+      element.style.viewTransitionName = "";
+    });
+  }, 500);
 };
 
 export const $limpiarFiltros = $<HTMLButtonElement>("#limpiar-filtros");
