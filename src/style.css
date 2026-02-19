@@ -115,9 +115,9 @@ dialog[open] {
     /* "none" evita que el texto se estire como chicle durante la animación */
 }
 
-::view-transition-old(*.list-item) {
+/* ::view-transition-old(*.list-item) {
     animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both slideToRight;
-}
+} */
 
 @keyframes slideToRight {
     from {
@@ -725,8 +725,13 @@ li span {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes scaleIn {
@@ -734,6 +739,7 @@ li span {
         opacity: 0;
         transform: scale(0.9);
     }
+
     to {
         opacity: 1;
         transform: scale(1);

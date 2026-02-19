@@ -12,7 +12,7 @@ import { resetFilters, saveExpense, filterByDateRange, type PeriodFilter } from 
 import { exportData, importData } from "../features/importExport";
 import { getCategoryBudgetStatus } from "../features/budgetModal";
 import { withTransition } from "../utils/viewTransitions";
-import { showSuccess } from "../features/toast";
+import { showSuccess, showError } from "../features/toast";
 
 const updateBudgetIndicator = () => {
   const $selectCategory = document.getElementById('expense-category') as HTMLSelectElement | null;
@@ -77,25 +77,48 @@ export function loadButtons() {
   const $importBtn = document.getElementById('import-btn');
   const $importFile = document.getElementById('import-file') as HTMLInputElement | null;
 
+  const today = new Date().toISOString().split('T')[0];
+  $filterDateStart?.setAttribute('max', today);
+  $filterDateEnd?.setAttribute('max', today);
+
   const applyFilters = () => {
     const startDate = $filterDateStart?.value || null;
     const endDate = $filterDateEnd?.value || null;
     const period = ($filterPeriod?.value || 'all') as PeriodFilter;
 
-    console.log(startDate, endDate, period)
+    if (startDate && endDate && startDate > endDate) {
+      showError("La fecha 'Desde' no puede ser mayor que 'Hasta'");
+      return;
+    }
+
     const hasFilters = startDate || endDate || period !== 'all';
     $limpiarFiltros?.classList.toggle('hidden', !hasFilters);
 
     const liItems = Array.from($expenseList.children) as HTMLElement[];
     addViewTransitionNameToVariousElements(liItems, "list-item");
     withTransition(() => {
-          filterByDateRange(startDate, endDate, period);
+      filterByDateRange(startDate, endDate, period);
     });
     removeViewTransitionNameFromVariousElements(liItems);
-    showSuccess("Gasto guardado");
+    showSuccess("Filtros aplicados");
   };
 
-  $filterDateStart?.addEventListener('change', applyFilters);
+  const validateDateInputs = () => {
+    const startDate = $filterDateStart?.value;
+    const endDate = $filterDateEnd?.value;
+
+    if (startDate && endDate && startDate > endDate) {
+      $filterDateEnd?.setCustomValidity("La fecha debe ser mayor o igual a 'Desde'");
+      $filterDateEnd?.reportValidity();
+    } else {
+      $filterDateEnd?.setCustomValidity("");
+    }
+  };
+
+  $filterDateStart?.addEventListener('change', () => {
+    validateDateInputs();
+    applyFilters();
+  });
   $filterDateEnd?.addEventListener('change', applyFilters);
   $filterPeriod?.addEventListener('change', applyFilters);
 

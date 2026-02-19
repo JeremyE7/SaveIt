@@ -133,6 +133,8 @@ export const checkBudgetAlertsOnLoad = () => {
   const expenses = getAllExpenses();
   const alerts = checkBudgetAlerts(expenses);
   
+  previousAlerts = alerts;
+  
   alerts.forEach((alert: BudgetAlert) => {
     if (alert.percentage >= 100) {
       showWarning(`¡Has excedido el presupuesto de ${categories[alert.category as Category]?.label || alert.category}! (${alert.percentage.toFixed(0)}%)`);
@@ -162,6 +164,41 @@ export const renderBudgetAlerts = (alerts: BudgetAlert[]) => {
       </div>
     `;
   }).join('');
+};
+
+let previousAlerts: BudgetAlert[] = [];
+
+export const updateBudgetAlerts = () => {
+  const expenses = getAllExpenses();
+  const alerts = checkBudgetAlerts(expenses);
+  
+  const hasSignificantChange = (newAlerts: BudgetAlert[], oldAlerts: BudgetAlert[]) => {
+    if (newAlerts.length !== oldAlerts.length) return true;
+    
+    for (let i = 0; i < newAlerts.length; i++) {
+      const newAlert = newAlerts[i];
+      const oldAlert = oldAlerts.find(a => a.category === newAlert.category);
+      if (!oldAlert) return true;
+      if (Math.abs(newAlert.percentage - oldAlert.percentage) >= 5) return true;
+    }
+    return false;
+  };
+  
+  if (hasSignificantChange(alerts, previousAlerts)) {
+    alerts.forEach((alert: BudgetAlert) => {
+      const oldAlert = previousAlerts.find(a => a.category === alert.category);
+      const oldPercentage = oldAlert?.percentage || 0;
+      
+      if (alert.percentage >= 100 && oldPercentage < 100) {
+        showWarning(`¡Has excedido el presupuesto de ${categories[alert.category as Category]?.label || alert.category}! (${alert.percentage.toFixed(0)}%)`);
+      } else if (alert.percentage >= 80 && oldPercentage < 80) {
+        showWarning(`Alerta: Has usado el ${alert.percentage.toFixed(0)}% del presupuesto de ${categories[alert.category as Category]?.label || alert.category}`);
+      }
+    });
+  }
+  
+  previousAlerts = alerts;
+  renderBudgetAlerts(alerts);
 };
 
 export const getCategoryBudgetStatus = (category: string): { hasBudget: boolean; spent: number; budget: number; percentage: number } | null => {

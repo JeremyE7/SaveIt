@@ -18,6 +18,7 @@ import { closeModal } from "./modal";
 import { generatePieChart } from "./graphs";
 import { withTransition } from "../utils/viewTransitions";
 import { showSuccess, showError } from "./toast";
+import { updateBudgetAlerts } from "./budgetModal";
 
 let expenseToEdit: Expense | null = null;
 
@@ -37,6 +38,7 @@ export const editExpense = (expense: Expense) => {
     setExpenseToEdit(null);
     setDataToLocalStorage<Expense[]>("expenses", expenses);
     loadExpenses();
+    updateBudgetAlerts();
   }
 };
 
@@ -71,6 +73,7 @@ export const addExpense = (expense: Expense) => {
   const expenses = getAllExpenses();
   expenses.unshift(expense);
   setDataToLocalStorage<Expense[]>("expenses", expenses);
+  updateBudgetAlerts();
 };
 
 export const saveExpense = (event: SubmitEvent) => {
@@ -141,6 +144,10 @@ export const filterByDateRange = (
   let expenses = getAllExpenses();
   const now = new Date();
 
+  const getDateString = (date: Date): string => {
+    return date.toISOString().split('T')[0];
+  };
+
   if (period !== 'all') {
     let start: Date;
     switch (period) {
@@ -156,20 +163,28 @@ export const filterByDateRange = (
         break;
     }
     if (start) {
-      expenses = expenses.filter((e) => new Date(e.date) >= start);
+      const startStr = getDateString(start);
+      expenses = expenses.filter((e) => {
+        const expenseDate = new Date(e.date).toISOString().split('T')[0];
+        return expenseDate >= startStr;
+      });
     }
   }
 
   if (startDate) {
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    expenses = expenses.filter((e) => new Date(e.date) >= start);
+    const startStr = startDate;
+    expenses = expenses.filter((e) => {
+      const expenseDate = new Date(e.date).toISOString().split('T')[0];
+      return expenseDate >= startStr;
+    });
   }
 
   if (endDate) {
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-    expenses = expenses.filter((e) => new Date(e.date) <= end);
+    const endStr = endDate;
+    expenses = expenses.filter((e) => {
+      const expenseDate = new Date(e.date).toISOString().split('T')[0];
+      return expenseDate <= endStr;
+    });
   }
 
   setFilteredExpenses(expenses);
@@ -236,6 +251,7 @@ export const deleteExpense = (id: string) => {
     deleteVisualExpense(expense);
   });
   removeViewTransitionNameFromVariousElements(liItems);
+  updateBudgetAlerts();
 };
 
 export const drawExpenses = () => {
