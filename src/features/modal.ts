@@ -1,10 +1,12 @@
-import { $, $modal } from "../dom/htmlElements";
+import { $, $expenseList, $modal, removeViewTransitionNameFromVariousElements } from "../dom/htmlElements";
 import type { Expense } from "../types/Expense";
 import { withTransition } from "../utils/viewTransitions";
 
 let buttonToClose: HTMLElement | undefined;
 
 export const openModal = ($button: HTMLElement, expense?: Expense) => {
+  const liItems = $expenseList.querySelectorAll("li") as unknown as HTMLElement[];
+  removeViewTransitionNameFromVariousElements(liItems, 0)
   $button.classList.add("trans-hero");
   buttonToClose = $button;
   if (expense) {
@@ -26,7 +28,7 @@ export const openModal = ($button: HTMLElement, expense?: Expense) => {
 export const closeModal = () => {
   withTransition(() => {
     if (buttonToClose) {
-      buttonToClose.style.display = "block";
+      buttonToClose.style.display = "flex";
     }
     buttonToClose?.classList.add("trans-hero");
     const $modalOpen = $<HTMLDialogElement>("dialog[open]");

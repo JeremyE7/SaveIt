@@ -1,7 +1,9 @@
 import { Chart, PieController, ArcElement, Tooltip, Legend } from "chart.js";
 import { categories, type Category } from "../types/Categories";
 import { filterExpenses } from "./expenses";
-import { showButton } from "../dom/htmlElements";
+import { $expenseList, addViewTransitionNameToVariousElements, removeViewTransitionNameFromVariousElements, showButton } from "../dom/htmlElements";
+import { withTransition } from "../utils/viewTransitions";
+import { showSuccess } from "./toast";
 
 Chart.register(PieController, ArcElement, Tooltip, Legend);
 
@@ -44,9 +46,14 @@ export const generatePieChart = (
         const index = elements[0].index;
 
         const label = chart.data.labels?.[index];
-        const filteredData = filterExpenses(label as unknown as Category);
+        const liItems = Array.from($expenseList.children) as HTMLElement[];
+        addViewTransitionNameToVariousElements(liItems, "list-item");
+        withTransition(() => {
+          filterExpenses(label as unknown as Category);
+        });
+        removeViewTransitionNameFromVariousElements(liItems);
+        showSuccess(`Filtrado por: ${categories[label as keyof typeof categories].label}`);
 
-        console.log(filteredData);
       },
       plugins: {
         legend: {

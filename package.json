@@ -18,6 +18,8 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "chart.js": "^4.5.1",
+    "feather-icons": "^4.29.2",
+    "lucide-react": "^0.574.0",
     "tailwindcss": "^4.1.18",
     "vite-plugin-pwa": "^1.2.0"
   }

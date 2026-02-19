@@ -1,5 +1,5 @@
 import {
-  deleteExpense,
+  confirmDeleteExpense,
   drawExpenses,
   getFilteredExpenses,
   setExpenseToEdit,
@@ -71,7 +71,7 @@ export const createExpenseElement = (expense: Expense) => {
   const buttonDelete = document.createElement("button");
   buttonDelete.textContent = "Eliminar";
   buttonDelete.addEventListener("click", () => {
-    deleteExpense(expense.id);
+    confirmDeleteExpense(expense.id);
   });
   div2.appendChild(buttonEdit);
   div2.appendChild(buttonDelete);
@@ -82,8 +82,9 @@ export const createExpenseElement = (expense: Expense) => {
 export const loadExpenses = () => {
   const expenses = getFilteredExpenses();
   $expenseList.innerHTML = "";
-  expenses.forEach((expense) => {
+  expenses.forEach((expense, index) => {
     const listItem = createExpenseElement(expense);
+    listItem.style.viewTransitionName = "list-item-" + index;
     $expenseList.prepend(listItem);
   });
   drawExpenses();
@@ -130,24 +131,27 @@ export const addViewTransitionNameToVariousElements = (
   elements.forEach((element, index) => {
     console.log("adding view transition name to element", element);
     addViewTransitionNameToAnElement(element, name + "-" + index);
+    element.style.setProperty("view-transition-class", name);
   });
 };
 
 export const removeViewTransitionNameFromVariousElements = (
   elements: HTMLElement[],
+  time: number = 500,
 ) => {
   setTimeout(() => {
+    console.log("removing view transition name from elements", elements);
     elements.forEach((element) => {
       element.style.viewTransitionName = "";
+      element.style.setProperty("view-transition-class", "");
     });
-  }, 500);
+  }, time);
 };
 
 export const $limpiarFiltros = $<HTMLButtonElement>("#limpiar-filtros");
 export const $selectCategory = $<HTMLSelectElement>("#expense-category");
 export const $formExpense = $<HTMLFormElement>("#addExpenseForm");
 export const $expenseList = $<HTMLUListElement>("#expenses-list");
-console.log($formExpense);
 export const $modal = $<HTMLDialogElement>("#addExpenseModal");
 export const $button = $<HTMLButtonElement>("#agregar-gasto");
 export const $cancelBtn = $modal?.querySelector(

@@ -115,6 +115,28 @@ dialog[open] {
     /* "none" evita que el texto se estire como chicle durante la animación */
 }
 
+::view-transition-old(*.list-item) {
+    animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both slideToRight;
+}
+
+::view-transition-new(*.list-item) {
+    background-color: red;
+}
+
+@keyframes slideToRight {
+    from {
+
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(60px);
+        opacity: 0;
+    }
+}
+
+
 /* Si quieres un efecto de fundido suave mientras crece: */
 ::view-transition-old(button-modal) {
     animation: 300ms fade-out both;
@@ -126,28 +148,25 @@ dialog[open] {
         400ms bounce-stretch 100ms both;
 }
 
-::view-transition-group(ul) {
-    animation: 300ms pushedToBottom both;
-}
-
-::view-transition-new(list) {
-    animation: 300ms appearFromLeft both;
-}
-
 @keyframes pushedToBottom {
     0% {
         transform: translateY(0);
     }
+
     100% {
-        transform: translateY(10%);
+        transform: translateY(500%);
+        opacity: 0;
     }
 }
 
 @keyframes appearFromLeft {
     0% {
+        opacity: 0;
         transform: translateX(-500%);
     }
+
     100% {
+        opacity: 1;
         transform: translateX(0);
     }
 }
@@ -156,6 +175,7 @@ dialog[open] {
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -165,19 +185,24 @@ dialog[open] {
     0% {
         scale: 1;
     }
+
     25% {
         scale: 1.03 0.91;
         rotate: -2deg;
     }
+
     45% {
         scale: 0.94 1;
     }
+
     65% {
         scale: 1 0.96;
     }
+
     85% {
         scale: 0.992 1;
     }
+
     100% {
         scale: 1;
     }
@@ -187,6 +212,7 @@ dialog[open] {
     from {
         opacity: 1;
     }
+
     to {
         opacity: 0;
     }
@@ -261,8 +287,289 @@ li div:last-child {
 li span {
     display: flex;
     gap: 10px;
+
     & strong {
         font-weight: bold;
         color: #fbc856;
     }
+}
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 16px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--color-darkmode-light);
+    color: var(--color-darkmode-text-dark);
+    border: 1px solid var(--color-darkmode-border);
+}
+
+.nav-btn:hover {
+    background: var(--color-darkmode-border);
+    transform: translateY(-2px);
+}
+
+.nav-btn-primary {
+    background: var(--color-text);
+    color: #fff;
+    border-color: var(--color-text);
+}
+
+.nav-btn-primary:hover {
+    background: var(--color-text-dark);
+    border-color: var(--color-text-dark);
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--color-darkmode-light);
+    border: 1px solid var(--color-darkmode-border);
+    color: var(--color-darkmode-text-dark);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+    background: var(--color-darkmode-border);
+    transform: translateX(-4px);
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.action-btn-secondary {
+    background: var(--color-darkmode-light);
+    color: var(--color-darkmode-text-dark);
+    border: 1px solid var(--color-darkmode-border);
+}
+
+.action-btn-secondary:hover {
+    background: var(--color-darkmode-border);
+}
+
+.filter-input {
+    background: var(--color-darkmode-light);
+    border: 1px solid var(--color-darkmode-border);
+    padding: 10px 14px;
+    border-radius: 10px;
+    color: var(--color-darkmode-text-dark);
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.filter-input:focus {
+    border-color: #fbc856;
+    box-shadow: 0 0 0 3px rgba(251, 200, 86, 0.15);
+}
+
+.filter-clear-btn {
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(251, 200, 86, 0.15);
+    color: #fbc856;
+    border: 1px solid rgba(251, 200, 86, 0.3);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-clear-btn:hover {
+    background: rgba(251, 200, 86, 0.25);
+}
+
+.expense-input {
+    background: var(--color-darkmode-light);
+    border: 1px solid var(--color-darkmode-border);
+    padding: 14px 16px;
+    border-radius: 12px;
+    color: var(--color-darkmode-text-dark);
+    font-size: 14px;
+    font-family: var(--font-mono);
+    outline: none;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.expense-input:focus {
+    border-color: #fbc856;
+    box-shadow: 0 0 0 3px rgba(251, 200, 86, 0.15);
+}
+
+.expense-save-btn {
+    flex: 1;
+    padding: 14px 20px;
+    background: #fbc856;
+    color: var(--color-text-dark);
+    font-weight: 700;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.expense-save-btn:hover {
+    background: #fccf6e;
+    transform: scale(1.02);
+}
+
+.expense-cancel-btn {
+    flex: 1;
+    padding: 14px 20px;
+    background: transparent;
+    color: var(--color-darkmode-text);
+    font-weight: 600;
+    border-radius: 12px;
+    border: 1px solid var(--color-darkmode-border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.expense-cancel-btn:hover {
+    background: var(--color-darkmode-light);
+}
+
+.budget-card {
+    background: var(--color-darkmode-light);
+    border-radius: 20px;
+    border: 1px solid var(--color-darkmode-border);
+}
+
+.budget-input {
+    background: var(--color-darkmode-body);
+    border: 1px solid var(--color-darkmode-border);
+    padding: 12px 14px;
+    border-radius: 10px;
+    color: var(--color-darkmode-text-dark);
+    font-size: 14px;
+    width: 100%;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.budget-input:focus {
+    border-color: #fbc856;
+    box-shadow: 0 0 0 3px rgba(251, 200, 86, 0.15);
+}
+
+.budget-submit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    background: #fbc856;
+    color: var(--color-text-dark);
+    font-weight: 700;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 8px;
+}
+
+.budget-submit-btn:hover {
+    background: #fccf6e;
+    transform: translateY(-2px);
+}
+
+.budget-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--color-darkmode-light);
+    border-radius: 16px;
+    border: 1px solid var(--color-darkmode-border);
+    transition: all 0.2s ease;
+}
+
+.budget-item:hover {
+    border-color: var(--color-darkmode-text-light);
+}
+
+.budget-progress {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-darkmode-border);
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.budget-progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.budget-progress-bar.safe {
+    background: #22c55e;
+}
+
+.budget-progress-bar.warning {
+    background: #f59e0b;
+}
+
+.budget-progress-bar.danger {
+    background: #ef4444;
+}
+
+.budget-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.budget-alert.warning {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
+.budget-alert.danger {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.budget-delete-btn {
+    padding: 8px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: var(--color-darkmode-text-light);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.budget-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
 }

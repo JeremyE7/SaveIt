@@ -20,95 +20,135 @@
     </head>
 
     <body class="text-white flex flex-col gap-8">
-        <nav class="flex justify-between min-h-22">
-            <h1
-                class="text-2xl md:text-4xl font-black text-center tracking-tighter text-balance"
-            >
+        <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+        <div id="loading-overlay" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-400"></div>
+        </div>
+
+        <nav class="flex justify-between min-h-22 items-center" id="main-nav">
+            <h1 class="text-2xl md:text-4xl font-black text-center tracking-tighter text-balance flex items-center gap-2">
                 SaveIt <span class="text-amber-400">$</span>
             </h1>
-            <button
-                id="agregar-gasto"
-                class="rounded-2xl px-6 py-3 bg-red-600 hover:bg-red-500 font-bold shadow-lg shadow-red-900/20 transition-all cursor-pointer active:scale-95"
-            >
-                Agregar Gasto
-            </button>
-        </nav>
-        <div
-            class="grid grid-cols-1 md:grid-cols-4 px-10 justify-center w-full gap-8"
-        >
-            <div
-                id="chart-container"
-                class="col-span-2 md:col-span-1 h-100 md:h-[calc(100vh-10rem)]"
-            >
-                <canvas id="chart" class="w-full h-full"></canvas>
-            </div>
-            <div class="flex flex-col h-full col-span-3">
-                <h2 class="text-2xl font-bold">Lista de gastos</h2>
-                <button
-                    id="limpiar-filtros"
-                    class="w-50 ml-auto rounded-2xl px-6 py-3 bg-yellow-400/50 hidden hover:bg-yellow-500 font-bold shadow-lg shadow-red-900/20 transition-all cursor-pointer active:scale-95"
-                >
-                    Limpiar filtros
+            <div class="flex gap-3">
+                <button id="budget-btn" class="nav-btn" view-transition-name="nav-budget">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span>Presupuestos</span>
                 </button>
-                <ul
-                    id="expenses-list"
-                    class="max-h-[calc(100vh-13rem)] overflow-y-auto"
-                ></ul>
+                <button id="agregar-gasto" class="nav-btn nav-btn-primary" view-transition-name="button-modal">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Agregar Gasto</span>
+                </button>
+            </div>
+        </nav>
+
+        <div id="budgets-view" class="hidden w-full px-10">
+            <div class="max-w-2xl mx-auto">
+                <div class="flex items-center gap-4 mb-6">
+                    <button id="back-to-expenses" class="back-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    </button>
+                    <h2 class="text-3xl font-bold">Presupuestos</h2>
+                </div>
+
+                <div class="budget-card p-6 mb-6">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                        Nuevo Presupuesto
+                    </h3>
+                    <form id="budgetForm" class="flex flex-col gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm text-neutral-400 mb-1 block">Categoría</label>
+                                <select id="budget-category" name="category" class="budget-input"></select>
+                            </div>
+                            <div>
+                                <label class="text-sm text-neutral-400 mb-1 block">Período</label>
+                                <select id="budget-period" name="period" class="budget-input">
+                                    <option value="monthly">Mensual</option>
+                                    <option value="weekly">Semanal</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-sm text-neutral-400 mb-1 block">Límite ($)</label>
+                            <input type="number" id="budget-amount" name="amount" placeholder="0.00" class="budget-input" />
+                        </div>
+                        <button type="submit" class="budget-submit-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Guardar Presupuesto
+                        </button>
+                    </form>
+                </div>
+
+                <div id="budgets-list" class="flex flex-col gap-3"></div>
             </div>
         </div>
 
-        <dialog
-            id="addExpenseModal"
-            class="m-auto rounded-3xl p-8 backdrop:backdrop-blur-sm bg-neutral-900/80 border border-white/10 shadow-2xl text-white w-[90%] max-w-md"
-        >
+        <div id="expenses-view" class="grid grid-cols-1 md:grid-cols-4 px-10 justify-center w-full gap-8">
+            <div id="chart-container" class="col-span-2 md:col-span-1 h-100 md:h-[calc(100vh-10rem)]">
+                <canvas id="chart" class="w-full h-full"></canvas>
+            </div>
+            <div class="flex flex-col h-full col-span-3">
+                <div class="flex flex-wrap gap-4 items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold">Lista de gastos</h2>
+                    <div class="flex gap-2 flex-wrap">
+                        <button id="export-btn" class="action-btn action-btn-secondary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Exportar
+                        </button>
+                        <button id="import-btn" class="action-btn action-btn-secondary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Importar
+                        </button>
+                        <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
+                    </div>
+                </div>
+
+                <div id="budget-alerts" class="flex flex-col gap-2 mb-4"></div>
+
+                <div class="flex flex-wrap gap-3 mb-4 items-center">
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-neutral-400">Desde:</label>
+                        <input type="date" id="filter-date-start" class="filter-input" />
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-neutral-400">Hasta:</label>
+                        <input type="date" id="filter-date-end" class="filter-input" />
+                    </div>
+                    <select id="filter-period" class="filter-input">
+                        <option value="all">Todo</option>
+                        <option value="week">Esta semana</option>
+                        <option value="month">Este mes</option>
+                        <option value="year">Este año</option>
+                    </select>
+                    <button id="limpiar-filtros" class="filter-clear-btn flex">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        Limpiar
+                    </button>
+                </div>
+                <ul id="expenses-list" class="max-h-[calc(100vh-16rem)] overflow-y-auto"></ul>
+            </div>
+        </div>
+
+        <dialog id="addExpenseModal" class="m-auto rounded-3xl p-8 backdrop:backdrop-blur-sm bg-neutral-900/80 border border-white/10 shadow-2xl text-white w-[90%] max-w-md">
             <form id="addExpenseForm">
                 <div class="flex flex-col gap-4">
                     <h2 class="text-2xl font-bold">Nuevo Gasto</h2>
-                    <p class="text-neutral-400">
-                        Ingresa los detalles de tu compra.
-                    </p>
+                    <p class="text-neutral-400">Ingresa los detalles de tu compra.</p>
 
                     <label for="expense-name">Detalles del Gasto:</label>
-                    <input
-                        type="text"
-                        id="expense-name"
-                        placeholder="Detalles del Gasto"
-                        autofocus
-                        name="detail"
-                        class="bg-neutral-800 border border-neutral-700 p-4 rounded-xl focus:ring-2 focus:ring-amber-400 outline-none text-sm font-mono"
-                    />
+                    <input type="text" id="expense-name" placeholder="Detalles del Gasto" autofocus name="detail" class="expense-input" />
 
                     <label for="expense-category">Categoría:</label>
-                    <select
-                        id="expense-category"
-                        name="category"
-                        class="bg-neutral-800 border border-neutral-700 p-4 rounded-xl focus:ring-2 focus:ring-amber-400 outline-none text-sm font-mono"
-                    ></select>
+                    <select id="expense-category" name="category" class="expense-input"></select>
+                    <div id="budget-indicator" class="hidden p-3 rounded-lg"></div>
 
                     <label for="expense-amount">Monto:</label>
-                    <input
-                        type="number"
-                        placeholder="0.00"
-                        autofocus
-                        name="amount"
-                        class="bg-neutral-800 border border-neutral-700 p-4 rounded-xl focus:ring-2 focus:ring-amber-400 outline-none text-sm font-mono"
-                    />
+                    <input type="number" placeholder="0.00" autofocus name="amount" class="expense-input" />
 
                     <div class="flex gap-3 mt-4">
-                        <button
-                            data-close
-                            type="button"
-                            class="flex-1 py-3 font-semibold text-neutral-400 hover:scale-105 hover:bg-neutral-700 transition-all rounded-2xl"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            data-save
-                            type="submit"
-                            class="flex-1 py-3 bg-amber-400 text-black font-bold rounded-xl hover:scale-105 hover:bg-amber-500 transition-all"
-                        >
-                            Guardar
-                        </button>
+                        <button data-close type="button" class="expense-cancel-btn">Cancelar</button>
+                        <button data-save type="submit" class="expense-save-btn">Guardar</button>
                     </div>
                 </div>
             </form>

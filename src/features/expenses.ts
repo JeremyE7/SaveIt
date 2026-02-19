@@ -17,6 +17,7 @@ import { categories, type Category } from "../types/Categories";
 import { closeModal } from "./modal";
 import { generatePieChart } from "./graphs";
 import { withTransition } from "../utils/viewTransitions";
+import { showSuccess, showError } from "./toast";
 
 let expenseToEdit: Expense | null = null;
 
@@ -56,9 +57,14 @@ export const setFilteredExpenses = (expenses: Expense[]) => {
 export const resetFilters = () => {
   const expenses = getAllExpenses();
   setDataToLocalStorage<Expense[]>("filteredExpenses", expenses);
-  loadExpenses();
   hideButton();
-  return expenses;
+
+  const liItems = Array.from($expenseList.children) as HTMLElement[];
+  addViewTransitionNameToVariousElements(liItems, "list-item");
+  withTransition(() => {
+    loadExpenses();
+  });
+  removeViewTransitionNameFromVariousElements(liItems);
 };
 
 export const addExpense = (expense: Expense) => {
@@ -72,20 +78,35 @@ export const saveExpense = (event: SubmitEvent) => {
   event.preventDefault();
 
   if (!$formExpense) {
-    console.error("Formulario no encontrado");
-    return;
-  }
-  if (expenseToEdit) {
-    editExpense(expenseToEdit);
+    showError("Formulario no encontrado");
     return;
   }
 
   const formData = new FormData($formExpense);
 
+  const amount = parseFloat(formData.get("amount") as string);
+  const detail = (formData.get("detail") as string).trim();
+
+  if (!detail) {
+    showError("Ingresa los detalles del gasto");
+    return;
+  }
+
+  if (isNaN(amount) || amount <= 0) {
+    showError("Ingresa un monto válido");
+    return;
+  }
+
+  if (expenseToEdit) {
+    editExpense({ ...expenseToEdit, amount, detail, category: formData.get("category") as Category });
+    showSuccess("Gasto actualizado");
+    return;
+  }
+
   const newExpense = {
-    amount: parseFloat(formData.get("amount") as string),
+    amount,
     category: formData.get("category") as Category,
-    detail: formData.get("detail") as string,
+    detail,
     date: new Date().toISOString(),
     id: crypto.randomUUID(),
   };
@@ -98,6 +119,7 @@ export const saveExpense = (event: SubmitEvent) => {
     addVisualExpense(newExpense);
   });
   removeViewTransitionNameFromVariousElements(liItems);
+  showSuccess("Gasto guardado");
 };
 
 export const filterExpenses = (category: Category) => {
@@ -107,6 +129,66 @@ export const filterExpenses = (category: Category) => {
   );
   setFilteredExpenses(filteredExpenses);
   loadExpenses();
+};
+
+export type PeriodFilter = 'all' | 'week' | 'month' | 'year';
+
+export const filterByDateRange = (
+  startDate: string | null,
+  endDate: string | null,
+  period: PeriodFilter = 'all',
+) => {
+  let expenses = getAllExpenses();
+  const now = new Date();
+
+  if (period !== 'all') {
+    let start: Date;
+    switch (period) {
+      case 'week':
+        start = new Date(now);
+        start.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'year':
+        start = new Date(now.getFullYear(), 0, 1);
+        break;
+    }
+    if (start) {
+      expenses = expenses.filter((e) => new Date(e.date) >= start);
+    }
+  }
+
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    expenses = expenses.filter((e) => new Date(e.date) >= start);
+  }
+
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    expenses = expenses.filter((e) => new Date(e.date) <= end);
+  }
+
+  setFilteredExpenses(expenses);
+  loadExpenses();
+};
+
+export const confirmDeleteExpense = (id: string) => {
+  const expenses = getAllExpenses();
+  const expense = expenses.find((e) => e.id === id);
+  if (!expense) return;
+
+  const confirmed = window.confirm(
+    `¿Estás seguro de eliminar este gasto de ${expense.amount}$?`,
+  );
+
+  if (confirmed) {
+    deleteExpense(id);
+    showSuccess('Gasto eliminado');
+  }
 };
 
 export const deleteExpense = (id: string) => {
