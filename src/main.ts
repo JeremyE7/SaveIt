@@ -10,7 +10,10 @@ import { initSwipeExpense, openEditModal } from "./utils/swipe";
 
 registerSW({ immediate: false });
 
+let currentView = 'home';
+
 const showView = (viewName: string) => {
+  currentView = viewName;
   const views = ['home-view', 'stats-view', 'budgets-view'];
   views.forEach(view => {
     const el = document.getElementById(view);
@@ -250,6 +253,24 @@ const closeBottomSheet = () => {
   clearExpenseForm();
 };
 
+const openBudgetSheet = () => {
+  const overlay = document.getElementById('budget-sheet-overlay');
+  const amountInput = document.getElementById('budget-amount') as HTMLInputElement;
+  const categorySelect = document.getElementById('budget-category') as HTMLSelectElement;
+  
+  if (amountInput) amountInput.value = '';
+  if (categorySelect) categorySelect.value = '';
+  if (overlay) overlay.classList.add('active');
+};
+
+const closeBudgetSheet = () => {
+  const overlay = document.getElementById('budget-sheet-overlay');
+  const amountInput = document.getElementById('budget-amount') as HTMLInputElement;
+  
+  if (overlay) overlay.classList.remove('active');
+  if (amountInput) amountInput.value = '';
+};
+
 const clearExpenseForm = () => {
   const amountInput = document.getElementById('expense-amount') as HTMLInputElement;
   const detailInput = document.getElementById('expense-detail') as HTMLTextAreaElement;
@@ -428,7 +449,7 @@ const handleSaveBudget = () => {
 
   localStorage.setItem('budgets', JSON.stringify(budgets));
 
-  amountInput.value = '';
+  closeBudgetSheet();
   renderBudgetsList();
   loadHomeView();
   showSnackbar('Presupuesto guardado', 'success');
@@ -443,10 +464,21 @@ function setupEventListeners() {
   });
 
   document.getElementById('btn-add-expense')?.addEventListener('click', openBottomSheet);
-  document.getElementById('fab-add')?.addEventListener('click', openBottomSheet);
+  document.getElementById('fab-add')?.addEventListener('click', () => {
+    if (currentView === 'budgets') {
+      openBudgetSheet();
+    } else {
+      openBottomSheet();
+    }
+  });
   document.getElementById('btn-close-sheet')?.addEventListener('click', closeBottomSheet);
   document.getElementById('bottom-sheet-overlay')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeBottomSheet();
+  });
+  
+  document.getElementById('btn-close-budget-sheet')?.addEventListener('click', closeBudgetSheet);
+  document.getElementById('budget-sheet-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeBudgetSheet();
   });
 
   document.getElementById('btn-save-expense')?.addEventListener('click', handleSaveExpense);

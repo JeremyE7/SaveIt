@@ -180,27 +180,8 @@
                     <div style="width: 40px;"></div>
                 </header>
 
-                <!-- Create Budget Form -->
-                <section class="budget-form">
-                    <h2 class="budget-form-title">Crear Presupuesto</h2>
-                    <div class="budget-form-card">
-                        <div class="form-group">
-                            <label class="form-label">Categoría</label>
-                            <select id="budget-category" class="form-select"></select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Límite Mensual ($)</label>
-                            <input type="number" id="budget-amount" class="form-select" placeholder="0.00" />
-                        </div>
-                        <button id="btn-save-budget" class="action-btn action-btn-primary" style="width: 100%;">
-                            <span class="material-symbols-outlined">add</span>
-                            Crear Presupuesto
-                        </button>
-                    </div>
-                </section>
-
                 <!-- Budgets List -->
-                <div class="section-header">
+                <div class="section-header" style="margin-top: 20px;">
                     <h2 class="section-title">Presupuestos Activos</h2>
                 </div>
                 <div id="budgets-list" class="expenses-list" style="padding: 0 20px;"></div>
@@ -245,6 +226,34 @@
                 </div>
             </div>
 
+            <!-- Bottom Sheet Modal (Add Budget) -->
+            <div id="budget-sheet-overlay" class="bottom-sheet-overlay">
+                <div class="bottom-sheet">
+                    <div class="bottom-sheet-handle">
+                        <div class="bottom-sheet-handle-bar"></div>
+                    </div>
+                    <div class="bottom-sheet-header">
+                        <button id="btn-close-budget-sheet" class="bottom-sheet-close">Cancelar</button>
+                        <h2 class="bottom-sheet-title">Agregar Presupuesto</h2>
+                        <button id="btn-save-budget" class="bottom-sheet-close" style="color: #30c9e8;">Guardar</button>
+                    </div>
+                    <div class="bottom-sheet-content">
+                        <div class="form-group">
+                            <label class="form-label">Categoría</label>
+                            <select id="budget-category" class="form-select"></select>
+                        </div>
+
+                        <div class="amount-input-container" style="margin-top: 20px;">
+                            <p class="amount-input-label">Límite Mensual</p>
+                            <div class="amount-input-wrapper">
+                                <span class="amount-currency">$</span>
+                                <input type="number" id="budget-amount" class="amount-input" placeholder="0.00" step="0.01" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Snackbar -->
             <div id="snackbar" class="snackbar">
                 <div id="snackbar-icon" class="snackbar-icon success">
@@ -253,17 +262,15 @@
                 <span id="snackbar-message" class="snackbar-message"></span>
             </div>
 
-            <!-- FAB -->
-            <button id="fab-add" class="fab-button">
-                <span class="material-symbols-outlined">add</span>
-            </button>
-
             <!-- Bottom Navigation -->
             <nav class="bottom-nav">
                 <div class="bottom-nav-item active" data-view="home">
                     <span class="material-symbols-outlined fill-icon">home</span>
                     <small>Inicio</small>
                 </div>
+                <button id="fab-add" class="fab-button">
+                    <span class="material-symbols-outlined">add</span>
+                </button>
                 <div class="bottom-nav-item" data-view="stats">
                     <span class="material-symbols-outlined">pie_chart</span>
                     <small>Estadísticas</small>
