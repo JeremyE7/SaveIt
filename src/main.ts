@@ -1,11 +1,12 @@
 import "./style.css";
 import { registerSW } from "virtual:pwa-register";
 import { loadExpenses } from "./dom/htmlElements";
-import { getAllExpenses } from "./features/expenses";
+import { getAllExpenses, confirmDeleteExpense, setExpenseToEdit } from "./features/expenses";
 import { checkBudgetAlertsOnLoad, renderBudgetsList } from "./features/budgetModal";
-import { getCurrentMonthTotal, getBudgetLeft, getExpensesCount, getCurrentMonthExpenses, formatDateRelative, getCategoryDistribution } from "./utils/general";
+import { getCurrentMonthTotal, getBudgetLeft, getExpensesCount, getCurrentMonthExpenses, getCategoryDistribution } from "./utils/general";
 import { categories, type Category } from "./types/Categories";
 import { generatePieChart } from "./features/graphs";
+import { initSwipeExpense, openEditModal } from "./utils/swipe";
 
 registerSW({ immediate: false });
 
@@ -113,19 +114,44 @@ const loadAllExpenses = () => {
 
   container.innerHTML = expenses.map(expense => {
     const cat = categories[expense.category as Category];
+    const catColor = cat?.color || '#666';
     return `
       <div class="expense-item" data-id="${expense.id}">
-        <div class="expense-item-icon" style="background: ${cat?.color || '#666'}20; color: ${cat?.color || '#666'};">
-          <span class="material-symbols-outlined">${getCategoryIcon(expense.category)}</span>
-        </div>
-        <div class="expense-item-details">
-          <p class="expense-item-title">${expense.detail || cat?.label || expense.category}</p>
-          <p class="expense-item-date">${formatDateRelative(expense.date)}</p>
+        <div class="expense-item-left">
+          <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
+            <span class="material-symbols-outlined" style="font-size: 20px;">${getCategoryIcon(expense.category)}</span>
+          </div>
+          <div class="expense-item-details">
+            <div class="expense-item-title-row">
+              <p class="expense-item-title">${expense.detail || cat?.label || expense.category}</p>
+            </div>
+            <div class="expense-item-category-badge">
+              <span class="badge-dot" style="background: ${catColor};"></span>
+              ${cat?.label || expense.category}
+            </div>
+          </div>
         </div>
         <div class="expense-item-amount">-$${expense.amount.toFixed(2)}</div>
       </div>
     `;
   }).join('');
+
+  container.querySelectorAll('.expense-item').forEach((item) => {
+    const expense = expenses.find(e => e.id === (item as HTMLElement).dataset.id);
+    if (expense) {
+      initSwipeExpense(
+        item as HTMLElement,
+        expense,
+        (exp) => {
+          setExpenseToEdit(exp);
+          openEditModal(exp);
+        },
+        (id) => {
+          confirmDeleteExpense(id);
+        }
+      );
+    }
+  });
 };
 
 const getCategoryIcon = (category: string): string => {
@@ -229,11 +255,14 @@ const clearExpenseForm = () => {
   const detailInput = document.getElementById('expense-detail') as HTMLTextAreaElement;
   const dateInput = document.getElementById('expense-date') as HTMLInputElement;
   const categorySelect = document.getElementById('expense-category') as HTMLSelectElement;
+  const titleEl = document.querySelector('.bottom-sheet-title');
 
   if (amountInput) amountInput.value = '';
   if (detailInput) detailInput.value = '';
   if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
   if (categorySelect) categorySelect.value = '';
+  if (titleEl) titleEl.textContent = 'Agregar Gasto';
+  delete (window as any).__editingExpenseId__;
 };
 
 const loadCategorySelect = () => {
@@ -330,6 +359,28 @@ const handleSaveExpense = () => {
   }
 
   const expenses = getAllExpenses();
+  const editingId = (window as any).__editingExpenseId__;
+
+  if (editingId) {
+    const index = expenses.findIndex(e => e.id === editingId);
+    if (index !== -1) {
+      expenses[index] = {
+        ...expenses[index],
+        amount,
+        category,
+        detail,
+        date: new Date(date).toISOString()
+      };
+      localStorage.setItem('expenses', JSON.stringify(expenses));
+      localStorage.setItem('filteredExpenses', JSON.stringify(expenses));
+      delete (window as any).__editingExpenseId__;
+      closeBottomSheet();
+      loadHomeView();
+      showSnackbar('Gasto actualizado', 'success');
+      return;
+    }
+  }
+
   const newExpense = {
     id: crypto.randomUUID(),
     amount,

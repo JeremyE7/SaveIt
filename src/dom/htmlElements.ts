@@ -1,13 +1,13 @@
 import {
-  confirmDeleteExpense,
   drawExpenses,
   getFilteredExpenses,
   setExpenseToEdit,
+  confirmDeleteExpense,
 } from "../features/expenses";
 import { openModal } from "../features/modal";
 import type { Expense } from "../types/Expense";
 import { categories } from "../types/Categories";
-import { formatDateTime } from "../utils/general";
+import { initSwipeExpense, openEditModal } from "../utils/swipe";
 
 export const $ = <T extends Element>(query: string) =>
   document.querySelector(query) as T;
@@ -41,42 +41,78 @@ export const loadCategoryOptions = () => {
 };
 
 export const createExpenseElement = (expense: Expense) => {
-  const listItem = document.createElement("li");
+  const listItem = document.createElement("div");
   listItem.setAttribute("data-id", expense.id.toString());
-  const div1 = document.createElement("div");
-  const div2 = document.createElement("div");
-  const textCategoryName = categories[expense.category].label;
-  const h3 = document.createElement("h3");
-  const small = document.createElement("small");
-  const p = document.createElement("p");
-  const span = document.createElement("span");
-  const strong = document.createElement("strong");
-  h3.textContent = textCategoryName + ": ";
-  strong.textContent = expense.amount.toString() + " $";
-  span.appendChild(h3);
-  span.appendChild(strong);
-  small.textContent = formatDateTime(expense.date);
-  p.textContent = expense.detail;
-  div1.appendChild(span);
-  div1.appendChild(small);
-  div1.appendChild(p);
-  listItem.appendChild(div1);
+  listItem.className = "expense-item";
 
-  const buttonEdit = document.createElement("button");
-  buttonEdit.textContent = "Editar";
-  buttonEdit.addEventListener("click", () => {
+  const cat = categories[expense.category];
+  const catColor = cat?.color || '#666';
+
+  listItem.innerHTML = `
+    <div class="expense-item-left">
+      <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
+        <span class="material-symbols-outlined" style="font-size: 20px;">${getCategoryIcon(expense.category)}</span>
+      </div>
+      <div class="expense-item-details">
+        <div class="expense-item-title-row">
+          <p class="expense-item-title">${expense.detail || cat?.label || expense.category}</p>
+        </div>
+        <div class="expense-item-category-badge">
+          <span class="badge-dot" style="background: ${catColor};"></span>
+          ${cat?.label || expense.category}
+        </div>
+      </div>
+    </div>
+    <div class="expense-item-amount">-$${expense.amount.toFixed(2)}</div>
+  `;
+
+  listItem.addEventListener("click", () => {
     setExpenseToEdit(expense);
     openModal(listItem, expense);
   });
-  const buttonDelete = document.createElement("button");
-  buttonDelete.textContent = "Eliminar";
-  buttonDelete.addEventListener("click", () => {
-    confirmDeleteExpense(expense.id);
-  });
-  div2.appendChild(buttonEdit);
-  div2.appendChild(buttonDelete);
-  listItem.appendChild(div2);
+
+  initSwipeExpense(
+    listItem,
+    expense,
+    (exp) => {
+      setExpenseToEdit(exp);
+      openEditModal(exp);
+    },
+    (id) => {
+      confirmDeleteExpense(id);
+    }
+  );
+
   return listItem;
+};
+
+const getCategoryIcon = (category: string): string => {
+  const iconMap: Record<string, string> = {
+    food_home: 'local_grocery_store',
+    food_restaurant: 'restaurant',
+    transport_public: 'directions_bus',
+    transport_fuel: 'local_gas_station',
+    transport_taxi: 'local_taxi',
+    housing_rent: 'home',
+    housing_utilities: 'bolt',
+    housing_internet: 'wifi',
+    shopping_clothes: 'checkroom',
+    shopping_electronics: 'devices',
+    health_medicine: 'medication',
+    health_doctor: 'medical_services',
+    entertainment_streaming: 'smart_display',
+    entertainment_games: 'sports_esports',
+    education_courses: 'school',
+    work_tools: 'build',
+    finance_fees: 'account_balance',
+    personal_care: 'spa',
+    cleaning: 'cleaning_services',
+    gifts: 'card_giftcard',
+    pets: 'pets',
+    travel: 'flight',
+    other: 'more_horiz',
+  };
+  return iconMap[category] || 'receipt';
 };
 
 export const loadExpenses = () => {
