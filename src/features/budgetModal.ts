@@ -1,35 +1,6 @@
 import { getAllExpenses } from "./expenses";
 import { getBudgets, addBudget, removeBudget, type Budget, checkBudgetAlerts, type BudgetAlert } from "./budgets";
 import { categories, type Category } from "../types/Categories";
-import { showSuccess, showWarning } from "./toast";
-import { withTransition } from "../utils/viewTransitions";
-
-export const showBudgetsView = () => {
-  const expensesView = document.getElementById('expenses-view');
-  const budgetsView = document.getElementById('budgets-view');
-  
-  if (!expensesView || !budgetsView) return;
-
-  withTransition(() => {
-    expensesView.classList.add('hidden');
-    budgetsView.classList.remove('hidden');
-  });
-  
-  loadBudgetCategoryOptions();
-  renderBudgetsList();
-};
-
-export const hideBudgetsView = () => {
-  const expensesView = document.getElementById('expenses-view');
-  const budgetsView = document.getElementById('budgets-view');
-  
-  if (!expensesView || !budgetsView) return;
-
-  withTransition(() => {
-    budgetsView.classList.add('hidden');
-    expensesView.classList.remove('hidden');
-  });
-};
 
 export const loadBudgetCategoryOptions = () => {
   const select = document.getElementById('budget-category') as HTMLSelectElement;
@@ -53,14 +24,12 @@ export const handleBudgetSubmit = (e: Event) => {
   };
 
   if (isNaN(budget.amount) || budget.amount <= 0) {
-    showWarning('Ingresa un monto válido');
     return;
   }
 
   addBudget(budget);
   form.reset();
   renderBudgetsList();
-  showSuccess('Presupuesto guardado');
   checkBudgetAlertsOnLoad();
 };
 
@@ -73,9 +42,9 @@ export const renderBudgetsList = () => {
   
   if (budgets.length === 0) {
     container.innerHTML = `
-      <div class="budget-card p-8 text-center">
-        <p class="text-neutral-500">No hay presupuestos configurados</p>
-        <p class="text-neutral-600 text-sm mt-2">Crea tu primer presupuesto arriba</p>
+      <div class="expense-empty">
+        <p>No hay presupuestos configurados</p>
+        <p style="font-size: 12px; margin-top: 8px; color: var(--color-text-secondary);">Crea tu primer presupuesto arriba</p>
       </div>
     `;
     return;
@@ -98,21 +67,29 @@ export const renderBudgetsList = () => {
 
     const percentage = (spent / b.amount) * 100;
     const progressClass = percentage >= 100 ? 'danger' : percentage >= 80 ? 'warning' : 'safe';
+    const cat = categories[b.category as Category];
     
     return `
       <div class="budget-item" data-category="${b.category}">
-        <div class="flex-1">
-          <div class="flex justify-between items-center mb-1">
-            <span class="font-semibold">${categories[b.category as Category]?.label || b.category}</span>
-            <span class="text-sm text-neutral-400">${spent.toFixed(0)} / ${b.amount}$ (${b.period === 'monthly' ? 'mes' : 'semana'})</span>
+        <div class="budget-item-header">
+          <div class="budget-item-category">
+            <div class="budget-item-icon" style="background: ${cat?.color || '#666'}20; color: ${cat?.color || '#666'};">
+              <span class="material-symbols-outlined">${getCategoryIcon(b.category)}</span>
+            </div>
+            <div>
+              <p class="budget-item-name">${cat?.label || b.category}</p>
+            </div>
           </div>
-          <div class="budget-progress">
-            <div class="budget-progress-bar ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <p class="budget-item-amount">${spent.toFixed(0)} / ${b.amount}$ <span>(${b.period === 'monthly' ? 'mes' : 'semana'})</span></p>
+            <button data-delete-budget="${b.category}" class="budget-delete-btn">
+              <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
+            </button>
           </div>
         </div>
-        <button data-delete-budget="${b.category}" class="budget-delete-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
+        <div class="budget-progress">
+          <div class="budget-progress-bar ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
+        </div>
       </div>
     `;
   }).join('');
@@ -123,81 +100,90 @@ export const renderBudgetsList = () => {
       if (category) {
         removeBudget(category);
         renderBudgetsList();
-        showSuccess('Presupuesto eliminado');
+        checkBudgetAlertsOnLoad();
       }
     });
   });
+};
+
+const getCategoryIcon = (category: string): string => {
+  const iconMap: Record<string, string> = {
+    food_home: 'local_grocery_store',
+    food_restaurant: 'restaurant',
+    transport_public: 'directions_bus',
+    transport_fuel: 'local_gas_station',
+    transport_taxi: 'local_taxi',
+    housing_rent: 'home',
+    housing_utilities: 'bolt',
+    housing_internet: 'wifi',
+    shopping_clothes: 'checkroom',
+    shopping_electronics: 'devices',
+    health_medicine: 'medication',
+    health_doctor: 'medical_services',
+    entertainment_streaming: 'smart_display',
+    entertainment_games: 'sports_esports',
+    education_courses: 'school',
+    work_tools: 'build',
+    finance_fees: 'account_balance',
+    personal_care: 'spa',
+    cleaning: 'cleaning_services',
+    gifts: 'card_giftcard',
+    pets: 'pets',
+    travel: 'flight',
+    other: 'more_horiz',
+  };
+  return iconMap[category] || 'receipt';
 };
 
 export const checkBudgetAlertsOnLoad = () => {
   const expenses = getAllExpenses();
   const alerts = checkBudgetAlerts(expenses);
-  
-  previousAlerts = alerts;
-  
-  alerts.forEach((alert: BudgetAlert) => {
-    if (alert.percentage >= 100) {
-      showWarning(`¡Has excedido el presupuesto de ${categories[alert.category as Category]?.label || alert.category}! (${alert.percentage.toFixed(0)}%)`);
-    } else if (alert.percentage >= 80) {
-      showWarning(`Alerta: Has usado el ${alert.percentage.toFixed(0)}% del presupuesto de ${categories[alert.category as Category]?.label || alert.category}`);
-    }
-  });
-  
   renderBudgetAlerts(alerts);
 };
 
 export const renderBudgetAlerts = (alerts: BudgetAlert[]) => {
   const container = document.getElementById('budget-alerts');
-  if (!container) return;
+  const banner = document.getElementById('budget-alerts');
+  
+  if (!container || !banner) return;
   
   if (alerts.length === 0) {
+    banner.style.display = 'none';
     container.innerHTML = '';
     return;
   }
 
+  banner.style.display = 'flex';
+  
+  const worstAlert = alerts.reduce((worst, alert) => 
+    alert.percentage > worst.percentage ? alert : worst
+  , alerts[0]);
+
+  const isDanger = worstAlert.percentage >= 100;
+  const alertMessage = document.getElementById('alert-message');
+  
+  if (alertMessage) {
+    if (isDanger) {
+      alertMessage.textContent = `¡Has excedido el presupuesto de ${categories[worstAlert.category as Category]?.label || worstAlert.category}!`;
+    } else {
+      alertMessage.textContent = `Has usado el ${worstAlert.percentage.toFixed(0)}% de tu presupuesto`;
+    }
+  }
+
   container.innerHTML = alerts.map(alert => {
-    const isDanger = alert.percentage >= 100;
+    const isAlertDanger = alert.percentage >= 100;
     return `
-      <div class="budget-alert ${isDanger ? 'danger' : 'warning'}">
+      <div class="budget-alert ${isAlertDanger ? 'danger' : 'warning'}">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <span>${isDanger ? '¡Presupuesto excedido!' : 'Alerta de presupuesto'} ${categories[alert.category as Category]?.label || alert.category}: ${alert.percentage.toFixed(0)}%</span>
+        <span>${isAlertDanger ? '¡Presupuesto excedido!' : 'Alerta'} ${categories[alert.category as Category]?.label || alert.category}: ${alert.percentage.toFixed(0)}%</span>
       </div>
     `;
   }).join('');
 };
 
-let previousAlerts: BudgetAlert[] = [];
-
 export const updateBudgetAlerts = () => {
   const expenses = getAllExpenses();
   const alerts = checkBudgetAlerts(expenses);
-  
-  const hasSignificantChange = (newAlerts: BudgetAlert[], oldAlerts: BudgetAlert[]) => {
-    if (newAlerts.length !== oldAlerts.length) return true;
-    
-    for (let i = 0; i < newAlerts.length; i++) {
-      const newAlert = newAlerts[i];
-      const oldAlert = oldAlerts.find(a => a.category === newAlert.category);
-      if (!oldAlert) return true;
-      if (Math.abs(newAlert.percentage - oldAlert.percentage) >= 5) return true;
-    }
-    return false;
-  };
-  
-  if (hasSignificantChange(alerts, previousAlerts)) {
-    alerts.forEach((alert: BudgetAlert) => {
-      const oldAlert = previousAlerts.find(a => a.category === alert.category);
-      const oldPercentage = oldAlert?.percentage || 0;
-      
-      if (alert.percentage >= 100 && oldPercentage < 100) {
-        showWarning(`¡Has excedido el presupuesto de ${categories[alert.category as Category]?.label || alert.category}! (${alert.percentage.toFixed(0)}%)`);
-      } else if (alert.percentage >= 80 && oldPercentage < 80) {
-        showWarning(`Alerta: Has usado el ${alert.percentage.toFixed(0)}% del presupuesto de ${categories[alert.category as Category]?.label || alert.category}`);
-      }
-    });
-  }
-  
-  previousAlerts = alerts;
   renderBudgetAlerts(alerts);
 };
 

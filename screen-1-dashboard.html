@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Expense Dashboard Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#30c9e8",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#111e21",
+                        "pastel-pink": "#f4cfdf",
+                        "pastel-purple": "#d9d2e9",
+                        "pastel-blue": "#cfe2f3",
+                        "pastel-green": "#d9ead3"
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Manrope', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .donut-segment {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
+<div class="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark overflow-x-hidden pb-24">
+<!-- Header -->
+<header class="flex items-center justify-between p-6 pt-12">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
+<span class="material-symbols-outlined text-primary">account_circle</span>
+</div>
+<div>
+<p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Welcome back,</p>
+<h1 class="text-lg font-bold leading-tight">Alex Rivera</h1>
+</div>
+</div>
+<button class="size-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center relative">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-300">notifications</span>
+<span class="absolute top-2 right-2 size-2 bg-primary rounded-full border-2 border-background-light dark:border-background-dark"></span>
+</button>
+</header>
+<!-- Summary & Donut Chart -->
+<section class="px-6 py-4">
+<div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex justify-between items-start mb-6">
+<div>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Monthly Spending</p>
+<h2 class="text-3xl font-bold mt-1">$2,450.00</h2>
+</div>
+<div class="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">
+                        May 2024
+                    </div>
+</div>
+<div class="relative flex justify-center items-center h-48">
+<!-- Simple SVG Donut Chart -->
+<svg class="size-40" viewbox="0 0 36 36">
+<circle class="text-slate-200 dark:text-slate-800" cx="18" cy="18" fill="transparent" r="16" stroke="currentColor" stroke-width="3"></circle>
+<!-- Food - 45% -->
+<circle class="donut-segment" cx="18" cy="18" fill="transparent" r="16" stroke="#f4cfdf" stroke-dasharray="45 55" stroke-dashoffset="0" stroke-width="3"></circle>
+<!-- Transport - 25% -->
+<circle class="donut-segment" cx="18" cy="18" fill="transparent" r="16" stroke="#cfe2f3" stroke-dasharray="25 75" stroke-dashoffset="-45" stroke-width="3"></circle>
+<!-- Rent - 20% -->
+<circle class="donut-segment" cx="18" cy="18" fill="transparent" r="16" stroke="#d9ead3" stroke-dasharray="20 80" stroke-dashoffset="-70" stroke-width="3"></circle>
+<!-- Other - 10% -->
+<circle class="donut-segment" cx="18" cy="18" fill="transparent" r="16" stroke="#d9d2e9" stroke-dasharray="10 90" stroke-dashoffset="-90" stroke-width="3"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Total</p>
+<p class="text-xl font-bold">100%</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-6">
+<div class="flex items-center gap-2">
+<span class="size-3 rounded-full bg-pastel-pink"></span>
+<span class="text-xs font-medium text-slate-600 dark:text-slate-400">Food (45%)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="size-3 rounded-full bg-pastel-blue"></span>
+<span class="text-xs font-medium text-slate-600 dark:text-slate-400">Transport (25%)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="size-3 rounded-full bg-pastel-green"></span>
+<span class="text-xs font-medium text-slate-600 dark:text-slate-400">Rent (20%)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="size-3 rounded-full bg-pastel-purple"></span>
+<span class="text-xs font-medium text-slate-600 dark:text-slate-400">Utilities (10%)</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Action Buttons -->
+<section class="px-6 py-2 grid grid-cols-2 gap-4">
+<button class="bg-primary hover:bg-primary/90 text-background-dark font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-sm">add_circle</span>
+<span>Add Expense</span>
+</button>
+<button class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-sm">account_balance_wallet</span>
+<span>Budgets</span>
+</button>
+</section>
+<!-- Alert Banner -->
+<section class="px-6 py-4">
+<div class="flex items-center justify-between rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-red-500/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-red-500 text-lg">warning</span>
+</div>
+<div>
+<p class="text-sm font-bold text-red-500">Budget Alert</p>
+<p class="text-xs text-red-500/80">Food budget is at 90% of limit</p>
+</div>
+</div>
+<button class="text-xs font-bold uppercase tracking-wider text-red-500 underline underline-offset-4">
+                    Adjust
+                </button>
+</div>
+</section>
+<!-- Recent Expenses -->
+<section class="px-6 pb-4">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-bold">Recent Expenses</h3>
+<button class="text-primary text-sm font-bold">See All</button>
+</div>
+<div class="space-y-3">
+<!-- List Item 1 -->
+<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-4">
+<div class="size-10 rounded-lg bg-pastel-pink/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-pastel-pink">restaurant</span>
+</div>
+<div>
+<p class="font-bold text-sm">Sushi Dinner</p>
+<p class="text-[10px] text-slate-500 font-medium">May 24, 2024 • 8:30 PM</p>
+</div>
+</div>
+<p class="font-bold text-slate-900 dark:text-slate-100">-$42.50</p>
+</div>
+<!-- List Item 2 -->
+<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-4">
+<div class="size-10 rounded-lg bg-pastel-blue/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-pastel-blue">directions_car</span>
+</div>
+<div>
+<p class="font-bold text-sm">Fuel Station</p>
+<p class="text-[10px] text-slate-500 font-medium">May 23, 2024 • 10:15 AM</p>
+</div>
+</div>
+<p class="font-bold text-slate-900 dark:text-slate-100">-$65.00</p>
+</div>
+<!-- List Item 3 -->
+<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-4">
+<div class="size-10 rounded-lg bg-pastel-purple/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-pastel-purple">shopping_bag</span>
+</div>
+<div>
+<p class="font-bold text-sm">Target Store</p>
+<p class="text-[10px] text-slate-500 font-medium">May 22, 2024 • 4:45 PM</p>
+</div>
+</div>
+<p class="font-bold text-slate-900 dark:text-slate-100">-$128.90</p>
+</div>
+</div>
+</section>
+<!-- Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-background-light dark:bg-[#1a2e32] border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-between items-center z-50">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-1">home</span>
+<span class="text-[10px] font-bold">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">pie_chart</span>
+<span class="text-[10px] font-bold">Analysis</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="text-[10px] font-bold">Budgets</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-bold">Settings</span>
+</a>
+</nav>
+</div>
+</body></html>

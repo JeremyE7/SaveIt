@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="theme-color" content="#fbbf24" />
+        <meta name="theme-color" content="#30c9e8" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta
             name="apple-mobile-web-app-status-bar-style"
@@ -15,144 +15,267 @@
         <link rel="apple-touch-icon" href="/pwa-192x192.png" />
         <link rel="icon" type="image/svg+xml" href="/vite.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         <link href="src/style.css" rel="stylesheet" />
         <title>saveit</title>
     </head>
 
-    <body class="text-white flex flex-col gap-8">
-        <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+    <body class="text-white">
         <div id="loading-overlay" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-400"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#30c9e8]"></div>
         </div>
 
-        <nav class="flex justify-between min-h-22 items-center" id="main-nav">
-            <h1 class="text-2xl md:text-4xl font-black text-center tracking-tighter text-balance flex items-center gap-2">
-                SaveIt <span class="text-amber-400">$</span>
-            </h1>
-            <div class="flex gap-3">
-                <button id="budget-btn" class="nav-btn" view-transition-name="nav-budget">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    <span>Presupuestos</span>
-                </button>
-                <button id="agregar-gasto" class="nav-btn nav-btn-primary" view-transition-name="button-modal">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    <span>Agregar Gasto</span>
-                </button>
-            </div>
-        </nav>
-
-        <div id="budgets-view" class="hidden w-full px-10">
-            <div class="max-w-2xl mx-auto">
-                <div class="flex items-center gap-4 mb-6">
-                    <button id="back-to-expenses" class="back-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        <div class="app-container">
+            
+            <!-- HOME VIEW -->
+            <div id="home-view" class="view-container">
+                <!-- Header -->
+                <header class="dashboard-header">
+                    <div class="dashboard-header-left">
+                        <div class="dashboard-avatar">S</div>
+                        <div class="dashboard-welcome">
+                            <p>Welcome back,</p>
+                            <h1>SaveIt</h1>
+                        </div>
+                    </div>
+                    <button class="dashboard-notifications">
+                        <span class="material-symbols-outlined">notifications</span>
+                        <span class="notification-dot"></span>
                     </button>
-                    <h2 class="text-3xl font-bold">Presupuestos</h2>
-                </div>
+                </header>
 
-                <div class="budget-card p-6 mb-6">
-                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                        Nuevo Presupuesto
-                    </h3>
-                    <form id="budgetForm" class="flex flex-col gap-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="text-sm text-neutral-400 mb-1 block">Categoría</label>
-                                <select id="budget-category" name="category" class="budget-input"></select>
-                            </div>
-                            <div>
-                                <label class="text-sm text-neutral-400 mb-1 block">Período</label>
-                                <select id="budget-period" name="period" class="budget-input">
-                                    <option value="monthly">Mensual</option>
-                                    <option value="weekly">Semanal</option>
-                                </select>
-                            </div>
+                <!-- Summary Cards -->
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <div class="summary-card-icon cyan">
+                            <span class="material-symbols-outlined">trending_up</span>
                         </div>
-                        <div>
-                            <label class="text-sm text-neutral-400 mb-1 block">Límite ($)</label>
-                            <input type="number" id="budget-amount" name="amount" placeholder="0.00" class="budget-input" />
+                        <p class="summary-card-label">Gastado</p>
+                        <p class="summary-card-value cyan" id="total-spent">$0</p>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-icon green">
+                            <span class="material-symbols-outlined">account_balance_wallet</span>
                         </div>
-                        <button type="submit" class="budget-submit-btn">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                            Guardar Presupuesto
-                        </button>
-                    </form>
-                </div>
-
-                <div id="budgets-list" class="flex flex-col gap-3"></div>
-            </div>
-        </div>
-
-        <div id="expenses-view" class="grid grid-cols-1 md:grid-cols-4 px-10 justify-center w-full gap-8">
-            <div id="chart-container" class="col-span-2 md:col-span-1 h-100 md:h-[calc(100vh-10rem)]">
-                <canvas id="chart" class="w-full h-full"></canvas>
-            </div>
-            <div class="flex flex-col h-full col-span-3">
-                <div class="flex flex-wrap gap-4 items-center justify-between mb-4">
-                    <h2 class="text-2xl font-bold">Lista de gastos</h2>
-                    <div class="flex gap-2 flex-wrap">
-                        <button id="export-btn" class="action-btn action-btn-secondary">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Exportar
-                        </button>
-                        <button id="import-btn" class="action-btn action-btn-secondary">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            Importar
-                        </button>
-                        <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
+                        <p class="summary-card-label">Presupuesto</p>
+                        <p class="summary-card-value green" id="budget-left">$0</p>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-icon orange">
+                            <span class="material-symbols-outlined">receipt_long</span>
+                        </div>
+                        <p class="summary-card-label">Gastos</p>
+                        <p class="summary-card-value" id="expenses-count">0</p>
                     </div>
                 </div>
 
-                <div id="budget-alerts" class="flex flex-col gap-2 mb-4"></div>
+                <!-- Chart Section -->
+                <section class="chart-section">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Gastos del Mes</h2>
+                            <span class="chart-period" id="current-period">Mayo 2024</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chart"></canvas>
+                        </div>
+                        <div id="category-bar-container"></div>
+                        <div id="category-legend" class="category-legend"></div>
+                    </div>
+                </section>
 
-                <div class="flex flex-wrap gap-3 mb-4 items-center">
-                    <div class="flex items-center gap-2">
-                        <label class="text-sm text-neutral-400">Desde:</label>
-                        <input type="date" id="filter-date-start" class="filter-input" max="" />
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-sm text-neutral-400">Hasta:</label>
-                        <input type="date" id="filter-date-end" class="filter-input" max="" />
-                    </div>
-                    <select id="filter-period" class="filter-input">
-                        <option value="all">Todo</option>
-                        <option value="week">Esta semana</option>
-                        <option value="month">Este mes</option>
-                        <option value="year">Este año</option>
-                    </select>
-                    <button id="limpiar-filtros" class="filter-clear-btn flex">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        Limpiar
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button id="btn-add-expense" class="action-btn action-btn-primary">
+                        <span class="material-symbols-outlined">add_circle</span>
+                        Agregar
+                    </button>
+                    <button id="btn-manage-budget" class="action-btn action-btn-secondary">
+                        <span class="material-symbols-outlined">account_balance_wallet</span>
+                        Presupuesto
                     </button>
                 </div>
-                <ul id="expenses-list" class="max-h-[calc(100vh-16rem)] overflow-y-auto"></ul>
+
+                <!-- Budget Alert -->
+                <div id="budget-alerts" class="alert-banner" style="display: none;">
+                    <div class="alert-banner-left">
+                        <div class="alert-banner-icon">
+                            <span class="material-symbols-outlined">warning</span>
+                        </div>
+                        <div class="alert-banner-text">
+                            <p>Alerta de Presupuesto</p>
+                            <small id="alert-message">Has usado el 80% de tu presupuesto</small>
+                        </div>
+                    </div>
+                    <button class="alert-banner-action" id="alert-adjust">Ajustar</button>
+                </div>
+
+                <!-- Recent Expenses -->
+                <div class="section-header">
+                    <h2 class="section-title">Gastos Recientes</h2>
+                    <button class="section-action" id="btn-see-all">Ver todos</button>
+                </div>
+                <div id="expenses-list" class="expenses-list"></div>
             </div>
-        </div>
 
-        <dialog id="addExpenseModal" class="m-auto rounded-3xl p-8 backdrop:backdrop-blur-sm bg-neutral-900/80 border border-white/10 shadow-2xl text-white w-[90%] max-w-md">
-            <form id="addExpenseForm">
-                <div class="flex flex-col gap-4">
-                    <h2 class="text-2xl font-bold">Nuevo Gasto</h2>
-                    <p class="text-neutral-400">Ingresa los detalles de tu compra.</p>
+            <!-- STATS VIEW -->
+            <div id="stats-view" class="view-container view-hidden">
+                <header class="stats-header">
+                    <button id="btn-back-stats" class="stats-back-btn">
+                        <span class="material-symbols-outlined">arrow_back_ios</span>
+                    </button>
+                    <h1 class="stats-title">
+                        <span class="material-symbols-outlined stats-title-icon">pie_chart</span>
+                        Estadísticas
+                    </h1>
+                    <div style="width: 40px;"></div>
+                </header>
 
-                    <label for="expense-name">Detalles del Gasto:</label>
-                    <input type="text" id="expense-name" placeholder="Detalles del Gasto" autofocus name="detail" class="expense-input" />
-
-                    <label for="expense-category">Categoría:</label>
-                    <select id="expense-category" name="category" class="expense-input"></select>
-                    <div id="budget-indicator" class="hidden p-3 rounded-lg"></div>
-
-                    <label for="expense-amount">Monto:</label>
-                    <input type="number" placeholder="0.00" autofocus name="amount" class="expense-input" />
-
-                    <div class="flex gap-3 mt-4">
-                        <button data-close type="button" class="expense-cancel-btn">Cancelar</button>
-                        <button data-save type="submit" class="expense-save-btn">Guardar</button>
+                <div class="summary-cards" style="margin-top: 20px;">
+                    <div class="summary-card">
+                        <div class="summary-card-icon cyan">
+                            <span class="material-symbols-outlined">trending_up</span>
+                        </div>
+                        <p class="summary-card-label">Total Gastado</p>
+                        <p class="summary-card-value cyan" id="stats-total-spent">$0</p>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-icon green">
+                            <span class="material-symbols-outlined">savings</span>
+                        </div>
+                        <p class="summary-card-label">Restante</p>
+                        <p class="summary-card-value green" id="stats-budget-left">$0</p>
                     </div>
                 </div>
-            </form>
-        </dialog>
+
+                <section class="chart-section">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Distribución por Categoría</h2>
+                        </div>
+                        <div id="stats-category-bar" class="category-bar"></div>
+                        <div id="stats-category-legend" class="category-legend"></div>
+                    </div>
+                </section>
+
+                <div class="section-header">
+                    <h2 class="section-title">Todos los Gastos</h2>
+                </div>
+                <div id="stats-expenses-list" class="expenses-list"></div>
+            </div>
+
+            <!-- BUDGETS VIEW -->
+            <div id="budgets-view" class="view-container view-hidden">
+                <header class="stats-header">
+                    <button id="btn-back-budgets" class="stats-back-btn">
+                        <span class="material-symbols-outlined">arrow_back_ios</span>
+                    </button>
+                    <h1 class="stats-title">
+                        <span class="material-symbols-outlined stats-title-icon">account_balance_wallet</span>
+                        Presupuestos
+                    </h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <!-- Create Budget Form -->
+                <section class="budget-form">
+                    <h2 class="budget-form-title">Crear Presupuesto</h2>
+                    <div class="budget-form-card">
+                        <div class="form-group">
+                            <label class="form-label">Categoría</label>
+                            <select id="budget-category" class="form-select"></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Límite Mensual ($)</label>
+                            <input type="number" id="budget-amount" class="form-select" placeholder="0.00" />
+                        </div>
+                        <button id="btn-save-budget" class="action-btn action-btn-primary" style="width: 100%;">
+                            <span class="material-symbols-outlined">add</span>
+                            Crear Presupuesto
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Budgets List -->
+                <div class="section-header">
+                    <h2 class="section-title">Presupuestos Activos</h2>
+                </div>
+                <div id="budgets-list" class="expenses-list" style="padding: 0 20px;"></div>
+            </div>
+
+            <!-- Bottom Sheet Modal (Add Expense) -->
+            <div id="bottom-sheet-overlay" class="bottom-sheet-overlay">
+                <div class="bottom-sheet">
+                    <div class="bottom-sheet-handle">
+                        <div class="bottom-sheet-handle-bar"></div>
+                    </div>
+                    <div class="bottom-sheet-header">
+                        <button id="btn-close-sheet" class="bottom-sheet-close">Cancelar</button>
+                        <h2 class="bottom-sheet-title">Agregar Gasto</h2>
+                        <button id="btn-save-expense" class="bottom-sheet-close" style="color: #30c9e8;">Guardar</button>
+                    </div>
+                    <div class="bottom-sheet-content">
+                        <div class="amount-input-container">
+                            <p class="amount-input-label">Monto</p>
+                            <div class="amount-input-wrapper">
+                                <span class="amount-currency">$</span>
+                                <input type="number" id="expense-amount" class="amount-input" placeholder="0.00" step="0.01" />
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Categoría</label>
+                            <select id="expense-category" class="form-select"></select>
+                            <div id="quick-categories" class="quick-categories"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Descripción</label>
+                            <textarea id="expense-detail" class="form-textarea" placeholder="¿En qué gastaste?"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Fecha</label>
+                            <input type="date" id="expense-date" class="form-date" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Snackbar -->
+            <div id="snackbar" class="snackbar">
+                <div id="snackbar-icon" class="snackbar-icon success">
+                    <span class="material-symbols-outlined">check</span>
+                </div>
+                <span id="snackbar-message" class="snackbar-message"></span>
+            </div>
+
+            <!-- FAB -->
+            <button id="fab-add" class="fab-button">
+                <span class="material-symbols-outlined">add</span>
+            </button>
+
+            <!-- Bottom Navigation -->
+            <nav class="bottom-nav">
+                <div class="bottom-nav-item active" data-view="home">
+                    <span class="material-symbols-outlined fill-icon">home</span>
+                    <small>Inicio</small>
+                </div>
+                <div class="bottom-nav-item" data-view="stats">
+                    <span class="material-symbols-outlined">pie_chart</span>
+                    <small>Estadísticas</small>
+                </div>
+                <div class="bottom-nav-item" data-view="budgets">
+                    <span class="material-symbols-outlined">account_balance_wallet</span>
+                    <small>Presupuestos</small>
+                </div>
+                <div class="bottom-nav-item">
+                    <span class="material-symbols-outlined">person</span>
+                    <small>Perfil</small>
+                </div>
+            </nav>
+        </div>
     </body>
     <script type="module" src="src/main.ts"></script>
 </html>
