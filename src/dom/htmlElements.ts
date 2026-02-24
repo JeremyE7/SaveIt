@@ -4,8 +4,10 @@ import {
   setExpenseToEdit,
   confirmDeleteExpense,
 } from "../features/expenses";
+import { getDataFromLocalStorage } from "../utils/LocalStorage";
 import { openModal } from "../features/modal";
 import type { Expense } from "../types/Expense";
+import type { Income } from "../types/Income";
 import { categories } from "../types/Categories";
 import { initSwipeExpense, openEditModal } from "../utils/swipe";
 
@@ -40,13 +42,20 @@ export const loadCategoryOptions = () => {
   $selectCategory.innerHTML = categoryOptions;
 };
 
-export const createExpenseElement = (expense: Expense) => {
+export type TransactionType = 'expense' | 'income';
+
+export const createExpenseElement = (expense: Expense, type: TransactionType = 'expense') => {
   const listItem = document.createElement("div");
   listItem.setAttribute("data-id", expense.id.toString());
+  listItem.setAttribute("data-type", type);
   listItem.className = "expense-item";
 
   const cat = categories[expense.category];
   const catColor = cat?.color || '#666';
+  const isIncome = type === 'income';
+  const arrowSymbol = isIncome ? '↑' : '↓';
+  const amountPrefix = isIncome ? '+' : '-';
+  const amountClass = isIncome ? 'expense-item-amount income' : 'expense-item-amount';
 
   listItem.innerHTML = `
     <div class="expense-item-left">
@@ -63,25 +72,27 @@ export const createExpenseElement = (expense: Expense) => {
         </div>
       </div>
     </div>
-    <div class="expense-item-amount">-$${expense.amount.toFixed(2)}</div>
+    <div class="${amountClass}"><span class="expense-item-arrow">${arrowSymbol}</span>${amountPrefix}$${expense.amount.toFixed(2)}</div>
   `;
 
-  listItem.addEventListener("click", () => {
-    setExpenseToEdit(expense);
-    openModal(listItem, expense);
-  });
+  if (!isIncome) {
+    listItem.addEventListener("click", () => {
+      setExpenseToEdit(expense);
+      openModal(listItem, expense);
+    });
 
-  initSwipeExpense(
-    listItem,
-    expense,
-    (exp) => {
-      setExpenseToEdit(exp);
-      openEditModal(exp);
-    },
-    (id) => {
-      confirmDeleteExpense(id);
-    }
-  );
+    initSwipeExpense(
+      listItem,
+      expense,
+      (exp) => {
+        setExpenseToEdit(exp);
+        openEditModal(exp);
+      },
+      (id) => {
+        confirmDeleteExpense(id);
+      }
+    );
+  }
 
   return listItem;
 };
@@ -117,9 +128,16 @@ const getCategoryIcon = (category: string): string => {
 
 export const loadExpenses = () => {
   const expenses = getFilteredExpenses();
+  const incomes = getDataFromLocalStorage<Income[]>("incomes") || [];
+  
+  const expenseItems = expenses.map(e => ({ ...e, type: 'expense' as const, sortDate: new Date(e.date).getTime() }));
+  const incomeItems = incomes.map(i => ({ ...i, type: 'income' as const, sortDate: new Date(i.date).getTime() }));
+  
+  const allTransactions = [...expenseItems, ...incomeItems].sort((a, b) => b.sortDate - a.sortDate);
+  
   $expenseList.innerHTML = "";
-  expenses.forEach((expense, index) => {
-    const listItem = createExpenseElement(expense);
+  allTransactions.forEach((transaction, index) => {
+    const listItem = createExpenseElement(transaction as Expense, transaction.type);
     listItem.style.viewTransitionName = "list-item-" + index;
     $expenseList.prepend(listItem);
   });

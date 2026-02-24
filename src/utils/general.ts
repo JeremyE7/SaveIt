@@ -1,5 +1,7 @@
 import type { Expense } from "../types/Expense";
+import type { Income } from "../types/Income";
 import { getAllExpenses } from "../features/expenses";
+import { getAllIncomes } from "../features/incomes";
 import { getBudgets, type Budget } from "../features/budgets";
 import { categories } from "../types/Categories";
 
@@ -109,4 +111,22 @@ export const getCategoryDistribution = (): CategoryStats[] => {
       color: categories[cat as keyof typeof categories]?.color || "#666",
     }))
     .sort((a, b) => b.amount - a.amount);
+};
+
+export const getCurrentMonthIncomes = (): Income[] => {
+  const incomes = getAllIncomes();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  return incomes.filter(e => new Date(e.date) >= monthStart);
+};
+
+export const getCurrentMonthIncomeTotal = (): number => {
+  return getCurrentMonthIncomes().reduce((sum, e) => sum + e.amount, 0);
+};
+
+export const getBalance = (): number => {
+  const incomes = getCurrentMonthIncomeTotal();
+  const expenses = getCurrentMonthTotal();
+  return incomes - expenses;
 };

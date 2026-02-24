@@ -2,8 +2,9 @@ import "./style.css";
 import { registerSW } from "virtual:pwa-register";
 import { loadExpenses } from "./dom/htmlElements";
 import { getAllExpenses, confirmDeleteExpense, setExpenseToEdit } from "./features/expenses";
+import { getAllIncomes } from "./features/incomes";
 import { checkBudgetAlertsOnLoad, renderBudgetsList } from "./features/budgetModal";
-import { getCurrentMonthTotal, getBudgetLeft, getExpensesCount, getCurrentMonthExpenses, getCategoryDistribution } from "./utils/general";
+import { getCurrentMonthTotal, getBudgetLeft, getCurrentMonthExpenses, getCategoryDistribution, getCurrentMonthIncomeTotal } from "./utils/general";
 import { categories, type Category } from "./types/Categories";
 import { generatePieChart } from "./features/graphs";
 import { initSwipeExpense, openEditModal } from "./utils/swipe";
@@ -40,16 +41,20 @@ const showView = (viewName: string) => {
 
 const loadHomeView = () => {
   const totalSpent = getCurrentMonthTotal();
-  const budgetLeft = getBudgetLeft();
-  const expensesCount = getExpensesCount();
+  const totalIncome = getCurrentMonthIncomeTotal();
+  const balance = totalIncome - totalSpent;
 
+  const incomeEl = document.getElementById('total-income');
   const spentEl = document.getElementById('total-spent');
-  const budgetEl = document.getElementById('budget-left');
-  const countEl = document.getElementById('expenses-count');
+  const balanceEl = document.getElementById('balance');
 
+  if (incomeEl) incomeEl.textContent = `$${totalIncome.toFixed(2)}`;
   if (spentEl) spentEl.textContent = `$${totalSpent.toFixed(2)}`;
-  if (budgetEl) budgetEl.textContent = `$${budgetLeft.toFixed(2)}`;
-  if (countEl) countEl.textContent = expensesCount.toString();
+  if (balanceEl) {
+    const balanceValue = balance >= 0 ? `+$${balance.toFixed(2)}` : `-$${Math.abs(balance).toFixed(2)}`;
+    balanceEl.textContent = balanceValue;
+    balanceEl.className = balance >= 0 ? 'summary-card-value green' : 'summary-card-value';
+  }
 
   const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
   const periodEl = document.getElementById('current-period');
@@ -271,6 +276,212 @@ const closeBudgetSheet = () => {
   if (amountInput) amountInput.value = '';
 };
 
+const openIncomeSheet = () => {
+  const overlay = document.getElementById('income-sheet-overlay');
+  const amountInput = document.getElementById('income-amount') as HTMLInputElement;
+  const detailInput = document.getElementById('income-detail') as HTMLTextAreaElement;
+  const categorySelect = document.getElementById('income-category') as HTMLSelectElement;
+  const dateInput = document.getElementById('income-date') as HTMLInputElement;
+  
+  if (amountInput) amountInput.value = '';
+  if (detailInput) detailInput.value = '';
+  if (categorySelect) categorySelect.value = '';
+  if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+  if (overlay) overlay.classList.add('active');
+};
+
+const closeIncomeSheet = () => {
+  const overlay = document.getElementById('income-sheet-overlay');
+  const amountInput = document.getElementById('income-amount') as HTMLInputElement;
+  const detailInput = document.getElementById('income-detail') as HTMLTextAreaElement;
+  
+  if (overlay) overlay.classList.remove('active');
+  if (amountInput) amountInput.value = '';
+  if (detailInput) detailInput.value = '';
+};
+
+const handleSaveIncome = () => {
+  const amountInput = document.getElementById('income-amount') as HTMLInputElement;
+  const detailInput = document.getElementById('income-detail') as HTMLTextAreaElement;
+  const categorySelect = document.getElementById('income-category') as HTMLSelectElement;
+  const dateInput = document.getElementById('income-date') as HTMLInputElement;
+
+  const amount = parseFloat(amountInput?.value || '0');
+  const detail = detailInput?.value?.trim() || '';
+  const category = categorySelect?.value as Category;
+  const date = dateInput?.value || new Date().toISOString().split('T')[0];
+
+  if (!amount || amount <= 0) {
+    showSnackbar('Ingresa un monto válido', 'error');
+    return;
+  }
+
+  if (!category) {
+    showSnackbar('Selecciona una fuente de ingreso', 'error');
+    return;
+  }
+
+  const incomes = getAllIncomes();
+  const newIncome = {
+    id: crypto.randomUUID(),
+    amount,
+    category,
+    detail,
+    date: new Date(date).toISOString()
+  };
+
+  incomes.unshift(newIncome);
+  localStorage.setItem('incomes', JSON.stringify(incomes));
+
+  closeIncomeSheet();
+  loadHomeView();
+  showSnackbar('Ingreso guardado', 'success');
+};
+
+// Radial Menu Logic
+let isRadialMenuOpen = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let currentHoveredOption: string | null = null;
+
+const initRadialMenu = () => {
+  const fab = document.getElementById('radial-menu-fab') as HTMLElement;
+  const backdrop = document.getElementById('radial-menu-backdrop');
+  const expenseOption = document.getElementById('radial-option-expense') as HTMLElement;
+  const incomeOption = document.getElementById('radial-option-income') as HTMLElement;
+  const budgetOption = document.getElementById('radial-option-budget') as HTMLElement;
+  const radialOptions = document.querySelector('.radial-menu-options') as HTMLElement;
+
+  if (!fab || !backdrop) return;
+
+  const showRadialMenu = () => {
+    isRadialMenuOpen = true;
+    fab.classList.add('menu-active');
+    backdrop.classList.add('active');
+    radialOptions?.classList.add('active');
+    expenseOption?.classList.add('active');
+    incomeOption?.classList.add('active');
+    budgetOption?.classList.add('active');
+  };
+
+  const hideRadialMenu = () => {
+    isRadialMenuOpen = false;
+    currentHoveredOption = null;
+    fab.classList.remove('menu-active', 'dragging');
+    backdrop.classList.remove('active');
+    radialOptions?.classList.remove('active');
+    expenseOption?.classList.remove('active', 'selected');
+    incomeOption?.classList.remove('active', 'selected');
+    budgetOption?.classList.remove('active', 'selected');
+  };
+
+  const getTouchPosition = (e: TouchEvent | MouseEvent): { x: number; y: number } => {
+    if ('touches' in e && e.touches.length > 0) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    if ('changedTouches' in e && e.changedTouches.length > 0) {
+      return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    }
+    return { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
+  };
+
+  const getSelectedOptionByAngle = (angle: number): string | null => {
+    if (angle >= 225 && angle <= 315) {
+      return 'budget';
+    } else if (angle > 315 || angle < 45) {
+      return 'income';
+    } else if (angle >= 45 && angle <= 225) {
+      return 'expense';
+    }
+    return null;
+  };
+
+  const highlightOption = (option: string | null) => {
+    expenseOption?.classList.toggle('selected', option === 'expense');
+    incomeOption?.classList.toggle('selected', option === 'income');
+    budgetOption?.classList.toggle('selected', option === 'budget');
+    currentHoveredOption = option;
+  };
+
+  const clearHighlight = () => {
+    expenseOption?.classList.remove('selected');
+    incomeOption?.classList.remove('selected');
+    budgetOption?.classList.remove('selected');
+  };
+
+  const handleStart = (e: TouchEvent | MouseEvent) => {
+    e.preventDefault();
+    const pos = getTouchPosition(e);
+    dragStartX = pos.x;
+    dragStartY = pos.y;
+    currentHoveredOption = null;
+    fab.classList.add('dragging');
+    showRadialMenu();
+  };
+
+  const handleMove = (e: TouchEvent | MouseEvent) => {
+    if (!fab.classList.contains('dragging') || !isRadialMenuOpen) return;
+    
+    e.preventDefault();
+    const pos = getTouchPosition(e);
+    const deltaX = pos.x - dragStartX;
+    const deltaY = pos.y - dragStartY;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    if (distance > 10) {
+      const angle = Math.atan2(-deltaY, deltaX) * (180 / Math.PI);
+      const normalizedAngle = angle < 0 ? angle + 360 : angle;
+      const selectedOption = getSelectedOptionByAngle(normalizedAngle);
+      highlightOption(selectedOption);
+    } else {
+      clearHighlight();
+    }
+  };
+
+  const handleEnd = (e: TouchEvent | MouseEvent) => {
+    fab.classList.remove('dragging');
+    
+    if (!isRadialMenuOpen) {
+      return;
+    }
+
+    e.preventDefault();
+    
+    let selectedAction: string | null = currentHoveredOption;
+    
+    if (!selectedAction) {
+      const pos = getTouchPosition(e);
+      const deltaX = pos.x - dragStartX;
+      const deltaY = pos.y - dragStartY;
+      const angle = Math.atan2(-deltaY, deltaX) * (180 / Math.PI);
+      const normalizedAngle = angle < 0 ? angle + 360 : angle;
+      selectedAction = getSelectedOptionByAngle(normalizedAngle);
+    }
+
+    hideRadialMenu();
+
+    if (selectedAction === 'expense') {
+      openBottomSheet();
+    } else if (selectedAction === 'income') {
+      openIncomeSheet();
+    } else if (selectedAction === 'budget') {
+      openBudgetSheet();
+    }
+  };
+
+  fab.addEventListener('touchstart', handleStart, { passive: false });
+  fab.addEventListener('touchmove', handleMove, { passive: false });
+  fab.addEventListener('touchend', handleEnd, { passive: false });
+  fab.addEventListener('touchcancel', hideRadialMenu);
+
+  fab.addEventListener('mousedown', handleStart);
+  document.addEventListener('mousemove', handleMove);
+  document.addEventListener('mouseup', handleEnd);
+
+  backdrop.addEventListener('click', hideRadialMenu);
+  backdrop.addEventListener('touchend', hideRadialMenu);
+};
+
 const clearExpenseForm = () => {
   const amountInput = document.getElementById('expense-amount') as HTMLInputElement;
   const detailInput = document.getElementById('expense-detail') as HTMLTextAreaElement;
@@ -483,6 +694,12 @@ function setupEventListeners() {
 
   document.getElementById('btn-save-expense')?.addEventListener('click', handleSaveExpense);
   document.getElementById('btn-save-budget')?.addEventListener('click', handleSaveBudget);
+  document.getElementById('btn-save-income')?.addEventListener('click', handleSaveIncome);
+
+  document.getElementById('btn-close-income-sheet')?.addEventListener('click', closeIncomeSheet);
+  document.getElementById('income-sheet-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeIncomeSheet();
+  });
 
   document.getElementById('btn-manage-budget')?.addEventListener('click', () => showView('budgets'));
   document.getElementById('btn-see-all')?.addEventListener('click', () => showView('stats'));
@@ -497,6 +714,7 @@ async function initApp() {
   loadCategorySelect();
   clearExpenseForm();
   setupEventListeners();
+  initRadialMenu();
   loadHomeView();
   checkBudgetAlertsOnLoad();
 }

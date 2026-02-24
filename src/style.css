@@ -1255,6 +1255,16 @@ li span {
     border-radius: 8px;
 }
 
+.expense-item-amount.income {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.expense-item-arrow {
+    font-size: 14px;
+    margin-right: 4px;
+}
+
 .expense-item-category-badge {
     display: inline-flex;
     align-items: center;
@@ -1321,25 +1331,61 @@ li span {
 .bottom-nav {
     position: fixed;
     top: unset;
-    height: auto;
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
     max-width: 480px;
+    height: 70px;
     display: flex;
-    justify-content: space-around;
-    padding: 12px 20px 24px;
+    align-items: flex-end;
+    justify-content: center;
     background: var(--color-bg-secondary);
     border-top: 1px solid var(--color-border);
     z-index: 40;
+    padding-bottom: 0;
+}
+
+.bottom-nav::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 30px;
+    background: var(--color-bg-secondary);
+    border-radius: 40px 40px 0 0;
+    z-index: 1;
+}
+
+.bottom-nav-items-left,
+.bottom-nav-items-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    z-index: 2;
+    padding-bottom: 12px;
+}
+
+.bottom-nav-items-left {
+    flex: 1;
+    justify-content: flex-end;
+    padding-right: 20px;
+}
+
+.bottom-nav-items-right {
+    flex: 1;
+    justify-content: flex-start;
+    padding-left: 20px;
 }
 
 .bottom-nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     color: var(--color-text-secondary);
     text-decoration: none;
     cursor: pointer;
@@ -1351,12 +1397,22 @@ li span {
 }
 
 .bottom-nav-item span {
-    font-size: 24px;
+    font-size: 22px;
 }
 
 .bottom-nav-item small {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
+}
+
+.radial-menu-container {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 10;
 }
 
 .fab-button {
@@ -1385,13 +1441,179 @@ li span {
     background: var(--color-primary-dark);
 }
 
+/* Radial Menu */
+.radial-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.radial-menu-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.radial-menu-wrapper {
+    position: relative;
+    bottom: 10px;
+    z-index: 101;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.radial-menu-fab {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #000;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    cursor: grab;
+    box-shadow: 0 4px 20px rgba(48, 201, 232, 0.5);
+    z-index: 102;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.radial-menu-fab:active {
+    cursor: grabbing;
+}
+
+.radial-menu-fab.dragging {
+    transform: scale(1.15);
+    box-shadow: 0 8px 32px rgba(48, 201, 232, 0.7);
+}
+
+.radial-menu-fab.menu-active {
+    transform: rotate(45deg);
+    background: #666;
+}
+
+.radial-menu-options {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 180px;
+    height: 140px;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+}
+
+.radial-menu-options.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.radial-menu-option {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.radial-menu-option.active {
+    pointer-events: auto;
+    opacity: 1;
+}
+
+.radial-menu-option.expense {
+    background: #ef4444;
+    color: white;
+    top: 10px;
+    left: 10px;
+    transform: translate(-30%, -30%) scale(1);
+    opacity: 0;
+}
+
+.radial-menu-option.expense.active {
+    opacity: 1;
+}
+
+.radial-menu-option.expense.selected {
+    transform: translate(-30%, -30%) scale(1.4);
+}
+
+.radial-menu-option.budget {
+    background: var(--color-primary);
+    color: #000;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%) scale(1);
+    opacity: 0;
+}
+
+.radial-menu-option.budget.active {
+    opacity: 1;
+}
+
+.radial-menu-option.budget.selected {
+    transform: translateX(-50%) scale(1.4);
+}
+
+.radial-menu-option.income {
+    background: #22c55e;
+    color: white;
+    top: 10px;
+    right: 10px;
+    transform: translate(30%, -30%) scale(1);
+    opacity: 0;
+}
+
+.radial-menu-option.income.active {
+    opacity: 1;
+}
+
+.radial-menu-option.income.selected {
+    transform: translate(30%, -30%) scale(1.4);
+}
+
+.radial-menu-option-label {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.radial-menu-option.active .radial-menu-option-label {
+    opacity: 1;
+}
+
 .bottom-sheet-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    z-index: 50;
+    z-index: 103;
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
@@ -1655,7 +1877,7 @@ li span {
     display: flex;
     align-items: center;
     gap: 12px;
-    z-index: 60;
+    z-index: 104;
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;

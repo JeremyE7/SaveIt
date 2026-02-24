@@ -53,22 +53,22 @@
                         <div class="summary-card-icon cyan">
                             <span class="material-symbols-outlined">trending_up</span>
                         </div>
-                        <p class="summary-card-label">Gastado</p>
-                        <p class="summary-card-value cyan" id="total-spent">$0</p>
+                        <p class="summary-card-label">Ingresos</p>
+                        <p class="summary-card-value cyan" id="total-income">$0</p>
                     </div>
                     <div class="summary-card">
                         <div class="summary-card-icon green">
-                            <span class="material-symbols-outlined">account_balance_wallet</span>
+                            <span class="material-symbols-outlined">trending_down</span>
                         </div>
-                        <p class="summary-card-label">Presupuesto</p>
-                        <p class="summary-card-value green" id="budget-left">$0</p>
+                        <p class="summary-card-label">Gastado</p>
+                        <p class="summary-card-value green" id="total-spent">$0</p>
                     </div>
                     <div class="summary-card">
                         <div class="summary-card-icon orange">
-                            <span class="material-symbols-outlined">receipt_long</span>
+                            <span class="material-symbols-outlined">account_balance_wallet</span>
                         </div>
-                        <p class="summary-card-label">Gastos</p>
-                        <p class="summary-card-value" id="expenses-count">0</p>
+                        <p class="summary-card-label">Balance</p>
+                        <p class="summary-card-value" id="balance">$0</p>
                     </div>
                 </div>
 
@@ -226,6 +226,52 @@
                 </div>
             </div>
 
+            <!-- Bottom Sheet Modal (Add Income) -->
+            <div id="income-sheet-overlay" class="bottom-sheet-overlay">
+                <div class="bottom-sheet">
+                    <div class="bottom-sheet-handle">
+                        <div class="bottom-sheet-handle-bar"></div>
+                    </div>
+                    <div class="bottom-sheet-header">
+                        <button id="btn-close-income-sheet" class="bottom-sheet-close">Cancelar</button>
+                        <h2 class="bottom-sheet-title">Agregar Ingreso</h2>
+                        <button id="btn-save-income" class="bottom-sheet-close" style="color: #30c9e8;">Guardar</button>
+                    </div>
+                    <div class="bottom-sheet-content">
+                        <div class="amount-input-container">
+                            <p class="amount-input-label">Monto</p>
+                            <div class="amount-input-wrapper">
+                                <span class="amount-currency">$</span>
+                                <input type="number" id="income-amount" class="amount-input" placeholder="0.00" step="0.01" />
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Fuente de Ingreso</label>
+                            <select id="income-category" class="form-select">
+                                <option value="">Selecciona una opción</option>
+                                <option value="salary">Sueldo</option>
+                                <option value="freelance">Freelance</option>
+                                <option value="bonus">Bonificación</option>
+                                <option value="investment">Inversiones</option>
+                                <option value="gift">Regalo</option>
+                                <option value="other_income">Otro</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Descripción</label>
+                            <textarea id="income-detail" class="form-textarea" placeholder="¿De dónde viene este ingreso?"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Fecha</label>
+                            <input type="date" id="income-date" class="form-date" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Bottom Sheet Modal (Add Budget) -->
             <div id="budget-sheet-overlay" class="bottom-sheet-overlay">
                 <div class="bottom-sheet">
@@ -264,24 +310,50 @@
 
             <!-- Bottom Navigation -->
             <nav class="bottom-nav">
-                <div class="bottom-nav-item active" data-view="home">
-                    <span class="material-symbols-outlined fill-icon">home</span>
-                    <small>Inicio</small>
+                <div class="bottom-nav-items-left">
+                    <div class="bottom-nav-item active" data-view="home">
+                        <span class="material-symbols-outlined fill-icon">home</span>
+                        <small>Inicio</small>
+                    </div>
+                    <div class="bottom-nav-item" data-view="stats">
+                        <span class="material-symbols-outlined">pie_chart</span>
+                        <small>Estadísticas</small>
+                    </div>
                 </div>
-                <button id="fab-add" class="fab-button">
-                    <span class="material-symbols-outlined">add</span>
-                </button>
-                <div class="bottom-nav-item" data-view="stats">
-                    <span class="material-symbols-outlined">pie_chart</span>
-                    <small>Estadísticas</small>
+                
+                <!-- Radial Menu FAB -->
+                <div class="radial-menu-container">
+                    <div id="radial-menu-backdrop" class="radial-menu-backdrop"></div>
+                    <div class="radial-menu-wrapper">
+                        <div class="radial-menu-options">
+                            <button id="radial-option-expense" class="radial-menu-option expense" data-action="expense">
+                                <span class="material-symbols-outlined">trending_down</span>
+                                <span class="radial-menu-option-label">Gasto</span>
+                            </button>
+                            <button id="radial-option-budget" class="radial-menu-option budget" data-action="budget">
+                                <span class="material-symbols-outlined">account_balance_wallet</span>
+                                <span class="radial-menu-option-label">Presupuesto</span>
+                            </button>
+                            <button id="radial-option-income" class="radial-menu-option income" data-action="income">
+                                <span class="material-symbols-outlined">trending_up</span>
+                                <span class="radial-menu-option-label">Ingreso</span>
+                            </button>
+                        </div>
+                        <button id="radial-menu-fab" class="radial-menu-fab">
+                            <span class="material-symbols-outlined">add</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="bottom-nav-item" data-view="budgets">
-                    <span class="material-symbols-outlined">account_balance_wallet</span>
-                    <small>Presupuestos</small>
-                </div>
-                <div class="bottom-nav-item">
-                    <span class="material-symbols-outlined">person</span>
-                    <small>Perfil</small>
+
+                <div class="bottom-nav-items-right">
+                    <div class="bottom-nav-item" data-view="budgets">
+                        <span class="material-symbols-outlined">account_balance_wallet</span>
+                        <small>Presupuestos</small>
+                    </div>
+                    <div class="bottom-nav-item">
+                        <span class="material-symbols-outlined">person</span>
+                        <small>Perfil</small>
+                    </div>
                 </div>
             </nav>
         </div>
