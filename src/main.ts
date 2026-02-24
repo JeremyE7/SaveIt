@@ -17,15 +17,44 @@ registerSW({ immediate: false });
 
 let currentView = 'home';
 
+const viewOrder: Record<string, number> = {
+  home: 0,
+  stats: 1,
+  budgets: 2
+};
+
 const showView = (viewName: string) => {
-  currentView = viewName;
-  const views = ['home-view', 'stats-view', 'budgets-view'];
-  views.forEach(view => {
-    const el = document.getElementById(view);
-    if (el) {
-      el.classList.toggle('view-hidden', view !== viewName + '-view');
-    }
-  });
+  const currentIndex = viewOrder[currentView] || 0;
+  const newIndex = viewOrder[viewName] || 0;
+  const direction = newIndex > currentIndex ? 'forward' : 'backward';
+
+  const currentEl = document.getElementById(currentView + '-view');
+  const newEl = document.getElementById(viewName + '-view');
+
+  if (direction === 'forward') {
+    currentEl?.classList.add('view-slide-out-left');
+    newEl?.classList.remove('view-hidden');
+    newEl?.classList.add('view-slide-in-right');
+  } else {
+    currentEl?.classList.add('view-slide-out-right');
+    newEl?.classList.remove('view-hidden');
+    newEl?.classList.add('view-slide-in-left');
+  }
+
+  setTimeout(() => {
+    currentEl?.classList.remove('view-slide-out-left', 'view-slide-out-right');
+    newEl?.classList.remove('view-slide-in-right', 'view-slide-in-left');
+
+    const views = ['home-view', 'stats-view', 'budgets-view'];
+    views.forEach(view => {
+      const el = document.getElementById(view);
+      if (el) {
+        el.classList.toggle('view-hidden', view !== viewName + '-view');
+      }
+    });
+
+    currentView = viewName;
+  }, 300);
 
   document.querySelectorAll('.bottom-nav-item').forEach(item => {
     item.classList.remove('active');
