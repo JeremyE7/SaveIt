@@ -1,6 +1,7 @@
 import { getAllExpenses } from "./expenses";
 import { getBudgets, addBudget, removeBudget, type Budget, checkBudgetAlerts, type BudgetAlert } from "./budgets";
 import { categories, type Category } from "../types/Categories";
+import { initSwipeBudget, openEditBudgetModal } from "../utils/swipe";
 
 export const loadBudgetCategoryOptions = () => {
   const select = document.getElementById('budget-category') as HTMLSelectElement;
@@ -17,6 +18,12 @@ export const handleBudgetSubmit = (e: Event) => {
   const form = e.target as HTMLFormElement;
   const formData = new FormData(form);
   
+  const editingCategory = (window as any).__editingBudgetCategory__;
+  
+  if (editingCategory) {
+    removeBudget(editingCategory);
+  }
+
   const budget: Budget = {
     category: formData.get('category') as string,
     amount: parseFloat(formData.get('amount') as string),
@@ -31,7 +38,10 @@ export const handleBudgetSubmit = (e: Event) => {
   form.reset();
   renderBudgetsList();
   checkBudgetAlertsOnLoad();
+  delete (window as any).__editingBudgetCategory__;
 };
+
+import { confirmDeleteBudget } from "./budgets";
 
 export const renderBudgetsList = () => {
   const container = document.getElementById('budgets-list');
@@ -76,16 +86,9 @@ export const renderBudgetsList = () => {
             <div class="budget-item-icon" style="background: ${cat?.color || '#666'}20; color: ${cat?.color || '#666'};">
               <span class="material-symbols-outlined">${getCategoryIcon(b.category)}</span>
             </div>
-            <div>
-              <p class="budget-item-name">${cat?.label || b.category}</p>
-            </div>
+            <p class="budget-item-name">${cat?.label || b.category}</p>
           </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <p class="budget-item-amount">${spent.toFixed(0)} / ${b.amount}$ <span>(${b.period === 'monthly' ? 'mes' : 'semana'})</span></p>
-            <button data-delete-budget="${b.category}" class="budget-delete-btn">
-              <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
-            </button>
-          </div>
+          <p class="budget-item-amount">${spent.toFixed(0)} / ${b.amount}$ <span>(${b.period === 'monthly' ? 'mes' : 'semana'})</span></p>
         </div>
         <div class="budget-progress">
           <div class="budget-progress-bar ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
@@ -94,15 +97,20 @@ export const renderBudgetsList = () => {
     `;
   }).join('');
 
-  container.querySelectorAll('[data-delete-budget]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const category = (e.target as HTMLElement).closest('[data-delete-budget]')?.getAttribute('data-delete-budget');
-      if (category) {
-        removeBudget(category);
-        renderBudgetsList();
-        checkBudgetAlertsOnLoad();
-      }
-    });
+  container.querySelectorAll('.budget-item').forEach(item => {
+    const budget = budgets.find(b => b.category === (item as HTMLElement).dataset.category);
+    if (budget) {
+      initSwipeBudget(
+        item as HTMLElement,
+        budget,
+        (b) => {
+          openEditBudgetModal(b);
+        },
+        (category) => {
+          confirmDeleteBudget(category);
+        }
+      );
+    }
   });
 };
 

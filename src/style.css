@@ -1973,12 +1973,15 @@ li span {
     font-size: 15px;
     font-weight: 600;
     color: var(--color-text-primary);
+    margin-right: 12px;
 }
 
 .budget-item-amount {
     font-size: 14px;
     font-weight: 600;
     color: var(--color-text-secondary);
+    text-align: right;
+    min-width: 100px;
 }
 
 .budget-item-amount span {
@@ -1987,28 +1990,32 @@ li span {
 }
 
 .budget-progress {
-    height: 6px;
-    background: var(--color-border);
-    border-radius: 3px;
+    height: 10px;
+    background: var(--color-bg-secondary);
+    border-radius: 5px;
     overflow: hidden;
+    margin-top: 8px;
 }
 
 .budget-progress-bar {
     height: 100%;
-    border-radius: 3px;
+    border-radius: 5px;
     transition: width 0.3s ease;
 }
 
 .budget-progress-bar.safe {
-    background: var(--color-success);
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
 }
 
 .budget-progress-bar.warning {
-    background: var(--color-warning);
+    background: linear-gradient(90deg, #eab308, #facc15);
+    box-shadow: 0 2px 8px rgba(234, 179, 8, 0.3);
 }
 
 .budget-progress-bar.danger {
-    background: #ef4444;
+    background: linear-gradient(90deg, #ef4444, #f87171);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
 .budget-delete-btn {

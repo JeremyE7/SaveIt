@@ -1091,6 +1091,13 @@ window.addEventListener('expenseDeleted', () => {
   }
 });
 
+window.addEventListener('budgetDeleted', () => {
+  loadHomeView();
+  if (currentView === 'budgets') {
+    renderBudgetsList();
+  }
+});
+
 async function initApp() {
   loadCategorySelect();
   clearExpenseForm();
