@@ -305,6 +305,7 @@ const handleSaveIncome = () => {
   const detailInput = document.getElementById('income-detail') as HTMLTextAreaElement;
   const categorySelect = document.getElementById('income-category') as HTMLSelectElement;
   const dateInput = document.getElementById('income-date') as HTMLInputElement;
+  const titleEl = document.querySelector('#income-sheet-overlay .bottom-sheet-title');
 
   const amount = parseFloat(amountInput?.value || '0');
   const detail = detailInput?.value?.trim() || '';
@@ -322,6 +323,28 @@ const handleSaveIncome = () => {
   }
 
   const incomes = getAllIncomes();
+  const editingId = (window as any).__editingIncomeId__;
+
+  if (editingId) {
+    const index = incomes.findIndex(i => i.id === editingId);
+    if (index !== -1) {
+      incomes[index] = {
+        ...incomes[index],
+        amount,
+        category,
+        detail,
+        date: new Date(date).toISOString()
+      };
+      localStorage.setItem('incomes', JSON.stringify(incomes));
+      delete (window as any).__editingIncomeId__;
+      closeIncomeSheet();
+      loadHomeView();
+      showSnackbar('Ingreso actualizado', 'success');
+      if (titleEl) titleEl.textContent = 'Agregar Ingreso';
+      return;
+    }
+  }
+
   const newIncome = {
     id: crypto.randomUUID(),
     amount,
@@ -336,6 +359,7 @@ const handleSaveIncome = () => {
   closeIncomeSheet();
   loadHomeView();
   showSnackbar('Ingreso guardado', 'success');
+  if (titleEl) titleEl.textContent = 'Agregar Ingreso';
 };
 
 // Radial Menu Logic
@@ -674,7 +698,6 @@ function setupEventListeners() {
     });
   });
 
-  document.getElementById('btn-add-expense')?.addEventListener('click', openBottomSheet);
   document.getElementById('fab-add')?.addEventListener('click', () => {
     if (currentView === 'budgets') {
       openBudgetSheet();
@@ -701,7 +724,6 @@ function setupEventListeners() {
     if (e.target === e.currentTarget) closeIncomeSheet();
   });
 
-  document.getElementById('btn-manage-budget')?.addEventListener('click', () => showView('budgets'));
   document.getElementById('btn-see-all')?.addEventListener('click', () => showView('stats'));
 
   document.getElementById('btn-back-stats')?.addEventListener('click', () => showView('home'));
@@ -709,6 +731,10 @@ function setupEventListeners() {
 
   document.getElementById('alert-adjust')?.addEventListener('click', () => showView('budgets'));
 }
+
+window.addEventListener('incomeDeleted', () => {
+  loadHomeView();
+});
 
 async function initApp() {
   loadCategorySelect();

@@ -9,7 +9,8 @@ import { openModal } from "../features/modal";
 import type { Expense } from "../types/Expense";
 import type { Income } from "../types/Income";
 import { categories } from "../types/Categories";
-import { initSwipeExpense, openEditModal } from "../utils/swipe";
+import { initSwipeExpense, initSwipeIncome, openEditModal, openEditIncomeModal } from "../utils/swipe";
+import { confirmDeleteIncome } from "../features/incomes";
 
 export const $ = <T extends Element>(query: string) =>
   document.querySelector(query) as T;
@@ -90,6 +91,17 @@ export const createExpenseElement = (expense: Expense, type: TransactionType = '
       },
       (id) => {
         confirmDeleteExpense(id);
+      }
+    );
+  } else {
+    initSwipeIncome(
+      listItem,
+      expense as unknown as Income,
+      (inc) => {
+        openEditIncomeModal(inc);
+      },
+      (id) => {
+        confirmDeleteIncome(id);
       }
     );
   }
