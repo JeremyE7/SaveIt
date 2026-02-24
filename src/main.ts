@@ -24,6 +24,8 @@ const viewOrder: Record<string, number> = {
 };
 
 const showView = (viewName: string) => {
+  if (viewName === currentView) return;
+
   const currentIndex = viewOrder[currentView] || 0;
   const newIndex = viewOrder[viewName] || 0;
   const direction = newIndex > currentIndex ? 'forward' : 'backward';
