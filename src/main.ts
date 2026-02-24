@@ -4,10 +4,14 @@ import { loadExpenses } from "./dom/htmlElements";
 import { getAllExpenses, confirmDeleteExpense, setExpenseToEdit } from "./features/expenses";
 import { getAllIncomes } from "./features/incomes";
 import { checkBudgetAlertsOnLoad, renderBudgetsList } from "./features/budgetModal";
-import { getCurrentMonthTotal, getBudgetLeft, getCurrentMonthExpenses, getCategoryDistribution, getCurrentMonthIncomeTotal } from "./utils/general";
+import { getCurrentMonthTotal, getCurrentMonthExpenses, getCategoryDistribution, getCurrentMonthIncomeTotal, getExpensesByMonth, getIncomesByMonth, getMonthTotal, getIncomeMonthTotal, getAllExpensesTotal, getAllIncomesTotal } from "./utils/general";
 import { categories, type Category } from "./types/Categories";
 import { generatePieChart } from "./features/graphs";
-import { initSwipeExpense, openEditModal } from "./utils/swipe";
+import { initSwipeExpense, initSwipeIncome, openEditModal, openEditIncomeModal } from "./utils/swipe";
+import { exportData, importData } from "./features/importExport";
+import { confirmDeleteIncome } from "./features/incomes";
+import type { Expense } from "./types/Expense";
+import type { Income } from "./types/Income";
 
 registerSW({ immediate: false });
 
@@ -86,80 +90,394 @@ const loadHomeView = () => {
   renderCategoryBar();
 };
 
+let statsSelectedYear: number;
+let statsSelectedMonth: number;
+let statsCurrentTab: 'expenses' | 'incomes' = 'expenses';
+
+const getMonthName = (month: number): string => {
+  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  return months[month];
+};
+
+const populatePeriodSelect = () => {
+  const select = document.getElementById('stats-period-select') as HTMLSelectElement;
+  if (!select) return;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  select.innerHTML = '<option value="all">Todo</option>';
+
+  for (let year = currentYear; year >= currentYear - 5; year--) {
+    const startMonth = year === currentYear ? currentMonth : 11;
+    const endMonth = year === currentYear ? currentMonth : 0;
+
+    for (let month = startMonth; month >= endMonth; month--) {
+      const option = document.createElement('option');
+      option.value = `${year}-${month}`;
+      option.textContent = `${getMonthName(month)} ${year}`;
+      select.appendChild(option);
+    }
+  }
+
+  select.value = `${currentYear}-${currentMonth}`;
+  statsSelectedYear = currentYear;
+  statsSelectedMonth = currentMonth;
+};
+
 const loadStatsView = () => {
-  const totalSpent = getCurrentMonthTotal();
-  const budgetLeft = getBudgetLeft();
+  const now = new Date();
+  statsSelectedYear = now.getFullYear();
+  statsSelectedMonth = now.getMonth();
+  statsCurrentTab = 'expenses';
 
+  populatePeriodSelect();
+  populateCategoryFilter();
+  updateStatsCards();
+  loadStatsExpenses();
+  setupStatsTabs();
+  setupStatsFilters();
+  setupStatsPeriodNavigation();
+  setupStatsImportExport();
+};
+
+const updateStatsCards = () => {
+  const select = document.getElementById('stats-period-select') as HTMLSelectElement;
+  const value = select?.value;
+
+  let totalIncome: number;
+  let totalSpent: number;
+
+  if (value === 'all') {
+    totalIncome = getAllIncomesTotal();
+    totalSpent = getAllExpensesTotal();
+  } else {
+    const [year, month] = value.split('-').map(Number);
+    totalIncome = getIncomeMonthTotal(year, month);
+    totalSpent = getMonthTotal(year, month);
+  }
+
+  const balance = totalIncome - totalSpent;
+
+  const incomeEl = document.getElementById('stats-total-income');
   const spentEl = document.getElementById('stats-total-spent');
-  const budgetEl = document.getElementById('stats-budget-left');
+  const balanceEl = document.getElementById('stats-balance');
 
+  if (incomeEl) incomeEl.textContent = `$${totalIncome.toFixed(2)}`;
   if (spentEl) spentEl.textContent = `$${totalSpent.toFixed(2)}`;
-  if (budgetEl) budgetEl.textContent = `$${budgetLeft.toFixed(2)}`;
-
-  loadAllExpenses();
-  renderStatsCategoryBar();
+  if (balanceEl) {
+    balanceEl.textContent = balance >= 0 ? `+$${balance.toFixed(2)}` : `-$${Math.abs(balance).toFixed(2)}`;
+    balanceEl.className = balance >= 0 ? 'stat-card-value income' : 'stat-card-value expense';
+  }
 };
 
-const loadBudgetsView = () => {
-  renderBudgetsList();
+const populateCategoryFilter = (type: 'expenses' | 'incomes' = 'expenses') => {
+  const select = document.getElementById('stats-filter-category') as HTMLSelectElement;
+  if (!select) return;
+
+  let options = '';
+
+  if (type === 'expenses') {
+    options = Object.entries(categories)
+      .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
+      .join('');
+  } else {
+    const incomeSources = [
+      { value: 'salary', label: 'Sueldo' },
+      { value: 'freelance', label: 'Freelance' },
+      { value: 'bonus', label: 'Bonificación' },
+      { value: 'investment', label: 'Inversiones' },
+      { value: 'gift', label: 'Regalo' },
+      { value: 'other_income', label: 'Otro' },
+    ];
+    options = incomeSources
+      .map(s => `<option value="${s.value}">${s.label}</option>`)
+      .join('');
+  }
+
+  select.innerHTML = `<option value="">Todas las ${type === 'expenses' ? 'categorías' : 'fuentes'}</option>${options}`;
 };
 
-const loadAllExpenses = () => {
+const getFilteredExpenses = (): Expense[] => {
+  const select = document.getElementById('stats-period-select') as HTMLSelectElement;
+  const dateStart = (document.getElementById('stats-filter-date-start') as HTMLInputElement)?.value;
+  const dateEnd = (document.getElementById('stats-filter-date-end') as HTMLInputElement)?.value;
+  const categoryFilter = (document.getElementById('stats-filter-category') as HTMLSelectElement)?.value;
+
+  let expenses: Expense[];
+
+  if (select?.value === 'all') {
+    expenses = getAllExpenses();
+  } else {
+    const [year, month] = select?.value.split('-').map(Number) || [statsSelectedYear, statsSelectedMonth];
+    expenses = getExpensesByMonth(year, month);
+  }
+
+  if (dateStart) {
+    expenses = expenses.filter(e => new Date(e.date) >= new Date(dateStart));
+  }
+  if (dateEnd) {
+    expenses = expenses.filter(e => new Date(e.date) <= new Date(dateEnd + 'T23:59:59'));
+  }
+  if (categoryFilter) {
+    expenses = expenses.filter(e => e.category === categoryFilter);
+  }
+
+  return expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+const getFilteredIncomes = (): Income[] => {
+  const select = document.getElementById('stats-period-select') as HTMLSelectElement;
+  const dateStart = (document.getElementById('stats-filter-date-start') as HTMLInputElement)?.value;
+  const dateEnd = (document.getElementById('stats-filter-date-end') as HTMLInputElement)?.value;
+  const categoryFilter = (document.getElementById('stats-filter-category') as HTMLSelectElement)?.value;
+
+  let incomes: Income[];
+
+  if (select?.value === 'all') {
+    incomes = getAllIncomes();
+  } else {
+    const [year, month] = select?.value.split('-').map(Number) || [statsSelectedYear, statsSelectedMonth];
+    incomes = getIncomesByMonth(year, month);
+  }
+
+  if (dateStart) {
+    incomes = incomes.filter(i => new Date(i.date) >= new Date(dateStart));
+  }
+  if (dateEnd) {
+    incomes = incomes.filter(i => new Date(i.date) <= new Date(dateEnd + 'T23:59:59'));
+  }
+  if (categoryFilter) {
+    incomes = incomes.filter(i => i.category === categoryFilter);
+  }
+
+  return incomes.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+const loadStatsExpenses = () => {
   const container = document.getElementById('stats-expenses-list');
-  if (!container) return;
+  const incomesContainer = document.getElementById('stats-incomes-list');
+  if (!container || !incomesContainer) return;
 
-  const expenses = getCurrentMonthExpenses().reverse();
+  const expenses = getFilteredExpenses();
 
   if (expenses.length === 0) {
     container.innerHTML = `
       <div class="expense-empty">
         <div class="expense-empty-icon">📊</div>
-        <p>No hay gastos este mes</p>
+        <p>No hay gastos</p>
       </div>
     `;
-    return;
-  }
-
-  container.innerHTML = expenses.map(expense => {
-    const cat = categories[expense.category as Category];
-    const catColor = cat?.color || '#666';
-    return `
-      <div class="expense-item" data-id="${expense.id}">
-        <div class="expense-item-left">
-          <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
-            <span class="material-symbols-outlined" style="font-size: 20px;">${getCategoryIcon(expense.category)}</span>
-          </div>
-          <div class="expense-item-details">
-            <div class="expense-item-title-row">
+  } else {
+    container.innerHTML = expenses.map(expense => {
+      const cat = categories[expense.category as Category];
+      const catColor = cat?.color || '#666';
+      return `
+        <div class="expense-item" data-id="${expense.id}">
+          <div class="expense-item-left">
+            <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
+              <span class="material-symbols-outlined" style="font-size: 20px;">${getCategoryIcon(expense.category)}</span>
+            </div>
+            <div class="expense-item-details">
               <p class="expense-item-title">${expense.detail || cat?.label || expense.category}</p>
-            </div>
-            <div class="expense-item-category-badge">
-              <span class="badge-dot" style="background: ${catColor};"></span>
-              ${cat?.label || expense.category}
+              <div class="expense-item-category-badge">
+                <span class="badge-dot" style="background: ${catColor};"></span>
+                ${cat?.label || expense.category}
+              </div>
             </div>
           </div>
+          <div class="expense-item-amount">-$${expense.amount.toFixed(2)}</div>
         </div>
-        <div class="expense-item-amount">-$${expense.amount.toFixed(2)}</div>
+      `;
+    }).join('');
+
+    container.querySelectorAll('.expense-item').forEach((item) => {
+      const expense = expenses.find(e => e.id === (item as HTMLElement).dataset.id);
+      if (expense) {
+        initSwipeExpense(
+          item as HTMLElement,
+          expense,
+          (exp) => {
+            setExpenseToEdit(exp);
+            openEditModal(exp);
+          },
+          (id) => {
+            confirmDeleteExpense(id);
+            setTimeout(() => {
+              loadStatsExpenses();
+              updateStatsCards();
+            }, 300);
+          }
+        );
+      }
+    });
+  }
+};
+
+const loadStatsIncomes = () => {
+  const container = document.getElementById('stats-incomes-list');
+  const expensesContainer = document.getElementById('stats-expenses-list');
+  if (!container || !expensesContainer) return;
+
+  const incomes = getFilteredIncomes();
+
+  if (incomes.length === 0) {
+    container.innerHTML = `
+      <div class="expense-empty">
+        <div class="expense-empty-icon">💰</div>
+        <p>No hay ingresos</p>
       </div>
     `;
-  }).join('');
+  } else {
+    container.innerHTML = incomes.map(income => {
+      const cat = categories[income.category as Category];
+      const catColor = cat?.color || '#22c55e';
+      return `
+        <div class="expense-item" data-id="${income.id}">
+          <div class="expense-item-left">
+            <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
+              <span class="material-symbols-outlined" style="font-size: 20px;">${getCategoryIcon(income.category)}</span>
+            </div>
+            <div class="expense-item-details">
+              <p class="expense-item-title">${income.detail || cat?.label || income.category}</p>
+              <div class="expense-item-category-badge">
+                <span class="badge-dot" style="background: ${catColor};"></span>
+                ${cat?.label || income.category}
+              </div>
+            </div>
+          </div>
+          <div class="expense-item-amount income">+$${income.amount.toFixed(2)}</div>
+        </div>
+      `;
+    }).join('');
 
-  container.querySelectorAll('.expense-item').forEach((item) => {
-    const expense = expenses.find(e => e.id === (item as HTMLElement).dataset.id);
-    if (expense) {
-      initSwipeExpense(
-        item as HTMLElement,
-        expense,
-        (exp) => {
-          setExpenseToEdit(exp);
-          openEditModal(exp);
-        },
-        (id) => {
-          confirmDeleteExpense(id);
+    container.querySelectorAll('.expense-item').forEach((item) => {
+      const income = incomes.find(i => i.id === (item as HTMLElement).dataset.id);
+      if (income) {
+        initSwipeIncome(
+          item as HTMLElement,
+          income,
+          (inc) => {
+            openEditIncomeModal(inc);
+          },
+          (id) => {
+            confirmDeleteIncome(id);
+            setTimeout(() => {
+              loadStatsIncomes();
+              updateStatsCards();
+            }, 300);
+          }
+        );
+      }
+    });
+  }
+};
+
+const setupStatsTabs = () => {
+  const tabs = document.querySelectorAll('.stats-tab');
+  const expensesList = document.getElementById('stats-expenses-list');
+  const incomesList = document.getElementById('stats-incomes-list');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabName = tab.getAttribute('data-tab') as 'expenses' | 'incomes';
+      statsCurrentTab = tabName;
+
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      populateCategoryFilter(tabName);
+
+      if (expensesList && incomesList) {
+        if (tabName === 'expenses') {
+          expensesList.classList.remove('hidden');
+          incomesList.classList.add('hidden');
+          loadStatsExpenses();
+        } else {
+          expensesList.classList.add('hidden');
+          incomesList.classList.remove('hidden');
+          loadStatsIncomes();
         }
-      );
+      }
+    });
+  });
+};
+
+const setupStatsFilters = () => {
+  const dateStart = document.getElementById('stats-filter-date-start') as HTMLInputElement;
+  const dateEnd = document.getElementById('stats-filter-date-end') as HTMLInputElement;
+  const category = document.getElementById('stats-filter-category') as HTMLSelectElement;
+  const period = document.getElementById('stats-period-select') as HTMLSelectElement;
+
+  const applyFilters = () => {
+    updateStatsCards();
+    if (statsCurrentTab === 'expenses') {
+      loadStatsExpenses();
+    } else {
+      loadStatsIncomes();
+    }
+  };
+
+  dateStart?.addEventListener('change', applyFilters);
+  dateEnd?.addEventListener('change', applyFilters);
+  category?.addEventListener('change', applyFilters);
+  period?.addEventListener('change', applyFilters);
+};
+
+const setupStatsPeriodNavigation = () => {
+  const prevBtn = document.getElementById('btn-prev-period');
+  const nextBtn = document.getElementById('btn-next-period');
+  const select = document.getElementById('stats-period-select') as HTMLSelectElement;
+
+  const navigatePeriod = (direction: 'prev' | 'next') => {
+    if (!select) return;
+    
+    const options = Array.from(select.options);
+    const currentIndex = options.findIndex(o => o.value === select.value);
+
+    if (direction === 'prev' && currentIndex > 0) {
+      select.selectedIndex = currentIndex - 1;
+    } else if (direction === 'next' && currentIndex < options.length - 1) {
+      select.selectedIndex = currentIndex + 1;
+    }
+
+    updateStatsCards();
+    if (statsCurrentTab === 'expenses') {
+      loadStatsExpenses();
+    } else {
+      loadStatsIncomes();
+    }
+  };
+
+  prevBtn?.addEventListener('click', () => navigatePeriod('prev'));
+  nextBtn?.addEventListener('click', () => navigatePeriod('next'));
+};
+
+const setupStatsImportExport = () => {
+  const exportBtn = document.getElementById('btn-export-stats');
+  const importBtn = document.getElementById('btn-import-stats');
+  const importFile = document.getElementById('import-file-stats') as HTMLInputElement;
+
+  exportBtn?.addEventListener('click', () => exportData('json'));
+
+  importBtn?.addEventListener('click', () => {
+    importFile?.click();
+  });
+
+  importFile?.addEventListener('change', async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      await importData(file);
+      loadStatsView();
+      showSnackbar('Data importada correctamente', 'success');
+      (e.target as HTMLInputElement).value = '';
     }
   });
+};
+
+const loadBudgetsView = () => {
+  renderBudgetsList();
 };
 
 const getCategoryIcon = (category: string): string => {
@@ -216,32 +534,6 @@ const renderCategoryBar = () => {
         <div class="category-legend-dot" style="background: ${s.color};"></div>
         <span class="category-legend-label">${s.label}</span>
         <span class="category-legend-value">${s.percentage.toFixed(0)}%</span>
-      </div>
-    `).join('');
-  }
-};
-
-const renderStatsCategoryBar = () => {
-  const stats = getCategoryDistribution();
-  const barContainer = document.getElementById('stats-category-bar');
-  const legendContainer = document.getElementById('stats-category-legend');
-
-  if (stats.length === 0) {
-    if (barContainer) barContainer.innerHTML = '';
-    if (legendContainer) legendContainer.innerHTML = '<p style="text-align: center; color: var(--color-text-secondary); font-size: 14px;">No hay gastos este mes</p>';
-    return;
-  }
-
-  if (barContainer) {
-    barContainer.innerHTML = stats.map(s => `<div style="width: ${s.percentage}%; background: ${s.color}; height: 100%;"></div>`).join('');
-  }
-
-  if (legendContainer) {
-    legendContainer.innerHTML = stats.map(s => `
-      <div class="category-legend-item">
-        <div class="category-legend-dot" style="background: ${s.color};"></div>
-        <span class="category-legend-label">${s.label}</span>
-        <span class="category-legend-value">$${s.amount.toFixed(2)} (${s.percentage.toFixed(0)}%)</span>
       </div>
     `).join('');
   }
@@ -339,6 +631,12 @@ const handleSaveIncome = () => {
       delete (window as any).__editingIncomeId__;
       closeIncomeSheet();
       loadHomeView();
+      if (currentView === 'stats') {
+        updateStatsCards();
+        if (statsCurrentTab === 'incomes') {
+          loadStatsIncomes();
+        }
+      }
       showSnackbar('Ingreso actualizado', 'success');
       if (titleEl) titleEl.textContent = 'Agregar Ingreso';
       return;
@@ -358,6 +656,12 @@ const handleSaveIncome = () => {
 
   closeIncomeSheet();
   loadHomeView();
+  if (currentView === 'stats') {
+    updateStatsCards();
+    if (statsCurrentTab === 'incomes') {
+      loadStatsIncomes();
+    }
+  }
   showSnackbar('Ingreso guardado', 'success');
   if (titleEl) titleEl.textContent = 'Agregar Ingreso';
 };
@@ -734,6 +1038,26 @@ function setupEventListeners() {
 
 window.addEventListener('incomeDeleted', () => {
   loadHomeView();
+  if (currentView === 'stats') {
+    updateStatsCards();
+    if (statsCurrentTab === 'expenses') {
+      loadStatsExpenses();
+    } else {
+      loadStatsIncomes();
+    }
+  }
+});
+
+window.addEventListener('expenseDeleted', () => {
+  loadHomeView();
+  if (currentView === 'stats') {
+    updateStatsCards();
+    if (statsCurrentTab === 'expenses') {
+      loadStatsExpenses();
+    } else {
+      loadStatsIncomes();
+    }
+  }
 });
 
 async function initApp() {

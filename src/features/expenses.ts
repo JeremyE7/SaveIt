@@ -218,6 +218,8 @@ export const confirmDeleteExpense = (id: string) => {
     cleanup();
     deleteExpense(id);
     showSuccess('Gasto eliminado');
+    const event = new CustomEvent('expenseDeleted');
+    window.dispatchEvent(event);
   };
 
   const handleCancel = () => {

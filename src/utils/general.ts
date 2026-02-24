@@ -130,3 +130,41 @@ export const getBalance = (): number => {
   const expenses = getCurrentMonthTotal();
   return incomes - expenses;
 };
+
+export const getExpensesByMonth = (year: number, month: number): Expense[] => {
+  const expenses = getAllExpenses();
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+
+  return expenses.filter(e => {
+    const date = new Date(e.date);
+    return date >= monthStart && date <= monthEnd;
+  });
+};
+
+export const getIncomesByMonth = (year: number, month: number): Income[] => {
+  const incomes = getAllIncomes();
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+
+  return incomes.filter(i => {
+    const date = new Date(i.date);
+    return date >= monthStart && date <= monthEnd;
+  });
+};
+
+export const getMonthTotal = (year: number, month: number): number => {
+  return getExpensesByMonth(year, month).reduce((sum, e) => sum + e.amount, 0);
+};
+
+export const getIncomeMonthTotal = (year: number, month: number): number => {
+  return getIncomesByMonth(year, month).reduce((sum, i) => sum + i.amount, 0);
+};
+
+export const getAllExpensesTotal = (): number => {
+  return getAllExpenses().reduce((sum, e) => sum + e.amount, 0);
+};
+
+export const getAllIncomesTotal = (): number => {
+  return getAllIncomes().reduce((sum, i) => sum + i.amount, 0);
+};

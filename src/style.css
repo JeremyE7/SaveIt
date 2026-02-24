@@ -1628,7 +1628,7 @@ li span {
     position: fixed;
     bottom: 0;
     left: 50%;
-    transform: translateX(50%) translateY(100%);
+    transform: translateX(-50%) translateY(100%);
     width: 100%;
     max-width: 480px;
     background: var(--color-bg-secondary);
@@ -2063,6 +2063,221 @@ li span {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+}
+
+.stats-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+    background: var(--color-primary);
+    color: #000;
+    border-color: var(--color-primary);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.stats-period-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: transparent;
+}
+
+.period-nav-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.period-nav-btn:active {
+    background: var(--color-primary);
+    color: #000;
+}
+
+.period-select {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    min-width: 120px;
+}
+
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 16px 20px;
+    background: transparent;
+}
+
+.stat-card {
+    background: var(--color-bg-card);
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+}
+
+.stat-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.stat-icon {
+    font-size: 16px;
+}
+
+.stat-icon.income {
+    color: #22c55e;
+}
+
+.stat-icon.expense {
+    color: #ef4444;
+}
+
+.stat-icon.balance {
+    color: var(--color-primary);
+}
+
+.stat-card-label {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.stat-card-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.stat-card-value.income {
+    color: #22c55e;
+}
+
+.stat-card-value.expense {
+    color: #ef4444;
+}
+
+.stats-tabs {
+    display: flex;
+    padding: 12px 20px;
+    gap: 8px;
+    background: transparent;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.stats-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.stats-tab.active {
+    background: var(--color-primary);
+    color: #000;
+    border-color: var(--color-primary);
+}
+
+.stats-tab .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.stats-filters {
+    padding: 12px 20px;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.filter-row {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.filter-group.full-width {
+    flex: 1 1 100%;
+}
+
+.filter-group label {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.filter-input,
+.filter-select {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.filter-input:focus,
+.filter-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.stats-list {
+    padding: 12px 20px;
+    min-height: 200px;
 }
 
 .view-container {

@@ -119,40 +119,89 @@
                         <span class="material-symbols-outlined stats-title-icon">pie_chart</span>
                         Estadísticas
                     </h1>
-                    <div style="width: 40px;"></div>
+                    <div class="stats-header-actions">
+                        <button id="btn-export-stats" class="icon-btn" title="Exportar">
+                            <span class="material-symbols-outlined">download</span>
+                        </button>
+                        <button id="btn-import-stats" class="icon-btn" title="Importar">
+                            <span class="material-symbols-outlined">upload</span>
+                        </button>
+                        <input type="file" id="import-file-stats" accept=".json" class="hidden" />
+                    </div>
                 </header>
 
-                <div class="summary-cards" style="margin-top: 20px;">
-                    <div class="summary-card">
-                        <div class="summary-card-icon cyan">
-                            <span class="material-symbols-outlined">trending_up</span>
+                <!-- Period Selector -->
+                <div class="stats-period-selector">
+                    <button id="btn-prev-period" class="period-nav-btn">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    <select id="stats-period-select" class="period-select">
+                        <option value="all">Todo</option>
+                    </select>
+                    <button id="btn-next-period" class="period-nav-btn">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="material-symbols-outlined stat-icon income">trending_up</span>
+                            <span class="stat-card-label">Ingresos</span>
                         </div>
-                        <p class="summary-card-label">Total Gastado</p>
-                        <p class="summary-card-value cyan" id="stats-total-spent">$0</p>
+                        <p class="stat-card-value income" id="stats-total-income">$0</p>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-card-icon green">
-                            <span class="material-symbols-outlined">savings</span>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="material-symbols-outlined stat-icon expense">trending_down</span>
+                            <span class="stat-card-label">Gastos</span>
                         </div>
-                        <p class="summary-card-label">Restante</p>
-                        <p class="summary-card-value green" id="stats-budget-left">$0</p>
+                        <p class="stat-card-value expense" id="stats-total-spent">$0</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="material-symbols-outlined stat-icon balance">savings</span>
+                            <span class="stat-card-label">Balance</span>
+                        </div>
+                        <p class="stat-card-value" id="stats-balance">$0</p>
                     </div>
                 </div>
 
-                <section class="chart-section">
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h2 class="chart-title">Distribución por Categoría</h2>
-                        </div>
-                        <div id="stats-category-bar" class="category-bar"></div>
-                        <div id="stats-category-legend" class="category-legend"></div>
-                    </div>
-                </section>
-
-                <div class="section-header">
-                    <h2 class="section-title">Todos los Gastos</h2>
+                <!-- Tabs -->
+                <div class="stats-tabs">
+                    <button class="stats-tab active" data-tab="expenses">
+                        <span class="material-symbols-outlined">trending_down</span>
+                        Gastos
+                    </button>
+                    <button class="stats-tab" data-tab="incomes">
+                        <span class="material-symbols-outlined">trending_up</span>
+                        Ingresos
+                    </button>
                 </div>
-                <div id="stats-expenses-list" class="expenses-list"></div>
+
+                <!-- Filters -->
+                <div class="stats-filters">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>Desde</label>
+                            <input type="date" id="stats-filter-date-start" class="filter-input" />
+                        </div>
+                        <div class="filter-group">
+                            <label>Hasta</label>
+                            <input type="date" id="stats-filter-date-end" class="filter-input" />
+                        </div>
+                    </div>
+                    <div class="filter-group full-width">
+                        <select id="stats-filter-category" class="filter-select">
+                            <option value="">Todas las categorías</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Lists -->
+                <div id="stats-expenses-list" class="stats-list"></div>
+                <div id="stats-incomes-list" class="stats-list hidden"></div>
             </div>
 
             <!-- BUDGETS VIEW -->
