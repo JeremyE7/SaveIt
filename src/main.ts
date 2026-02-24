@@ -5,9 +5,10 @@ import { getAllExpenses, confirmDeleteExpense, setExpenseToEdit } from "./featur
 import { getAllIncomes } from "./features/incomes";
 import { checkBudgetAlertsOnLoad, renderBudgetsList } from "./features/budgetModal";
 import { getCurrentMonthTotal, getCurrentMonthExpenses, getCategoryDistribution, getCurrentMonthIncomeTotal, getExpensesByMonth, getIncomesByMonth, getMonthTotal, getIncomeMonthTotal, getAllExpensesTotal, getAllIncomesTotal } from "./utils/general";
-import { categories, type Category } from "./types/Categories";
+import { expenseCategories, type ExpenseCategory } from "./types/ExpenseCategories";
+import { incomeCategories, type IncomeCategory } from "./types/IncomeCategories";
 import { generatePieChart } from "./features/graphs";
-import { initSwipeExpense, initSwipeIncome, openEditModal, openEditIncomeModal } from "./utils/swipe";
+import { initSwipeExpense, initSwipeIncome, initSwipeCategory, openEditModal, openEditIncomeModal } from "./utils/swipe";
 import { exportData, importData } from "./features/importExport";
 import { confirmDeleteIncome } from "./features/incomes";
 import type { Expense } from "./types/Expense";
@@ -20,7 +21,8 @@ let currentView = 'home';
 const viewOrder: Record<string, number> = {
   home: 0,
   stats: 1,
-  budgets: 2
+  budgets: 2,
+  profile: 3
 };
 
 const showView = (viewName: string) => {
@@ -47,7 +49,7 @@ const showView = (viewName: string) => {
     currentEl?.classList.remove('view-slide-out-left', 'view-slide-out-right');
     newEl?.classList.remove('view-slide-in-right', 'view-slide-in-left');
 
-    const views = ['home-view', 'stats-view', 'budgets-view'];
+    const views = ['home-view', 'stats-view', 'budgets-view', 'profile-view'];
     views.forEach(view => {
       const el = document.getElementById(view);
       if (el) {
@@ -69,6 +71,8 @@ const showView = (viewName: string) => {
     loadStatsView();
   } else if (viewName === 'budgets') {
     loadBudgetsView();
+  } else if (viewName === 'profile') {
+    loadProfileView();
   } else {
     loadHomeView();
   }
@@ -91,6 +95,22 @@ const loadHomeView = () => {
     balanceEl.className = balance >= 0 ? 'summary-card-value green' : 'summary-card-value';
   }
 
+  const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+  const usernameEl = document.getElementById('dashboard-username');
+  const avatarEl = document.getElementById('dashboard-avatar');
+  
+  if (usernameEl) {
+    usernameEl.textContent = userSettings.name || 'SaveIt';
+  }
+  if (avatarEl && userSettings.name) {
+    const initial = userSettings.name.charAt(0).toUpperCase();
+    avatarEl.innerHTML = `<span class="dashboard-avatar-initial">${initial}</span>`;
+    avatarEl.style.background = '#30c9e8';
+  } else if (avatarEl) {
+    avatarEl.innerHTML = '<span class="material-symbols-outlined">account_circle</span>';
+    avatarEl.style.background = '';
+  }
+
   const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
   const periodEl = document.getElementById('current-period');
   if (periodEl) {
@@ -111,7 +131,7 @@ const loadHomeView = () => {
     } else {
       labels.push(labelName);
       data.push(expense.amount);
-      colors.push(categories[expense.category as Category]?.color || '#666');
+      colors.push(expenseCategories[expense.category as ExpenseCategory]?.color || '#666');
     }
   });
 
@@ -208,23 +228,24 @@ const populateCategoryFilter = (type: 'expenses' | 'incomes' = 'expenses') => {
   if (!select) return;
 
   let options = '';
+  const customCategories = getCustomCategories();
 
   if (type === 'expenses') {
-    options = Object.entries(categories)
+    const defaultOptions = Object.entries(expenseCategories)
       .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
       .join('');
-  } else {
-    const incomeSources = [
-      { value: 'salary', label: 'Sueldo' },
-      { value: 'freelance', label: 'Freelance' },
-      { value: 'bonus', label: 'Bonificación' },
-      { value: 'investment', label: 'Inversiones' },
-      { value: 'gift', label: 'Regalo' },
-      { value: 'other_income', label: 'Otro' },
-    ];
-    options = incomeSources
-      .map(s => `<option value="${s.value}">${s.label}</option>`)
+    const customOptions = customCategories.filter(c => c.type === 'expense')
+      .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
       .join('');
+    options = defaultOptions + customOptions;
+  } else {
+    const defaultOptions = Object.entries(incomeCategories)
+      .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
+      .join('');
+    const customOptions = customCategories.filter(c => c.type === 'income')
+      .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
+      .join('');
+    options = defaultOptions + customOptions;
   }
 
   select.innerHTML = `<option value="">Todas las ${type === 'expenses' ? 'categorías' : 'fuentes'}</option>${options}`;
@@ -302,7 +323,7 @@ const loadStatsExpenses = () => {
     `;
   } else {
     container.innerHTML = expenses.map(expense => {
-      const cat = categories[expense.category as Category];
+      const cat = expenseCategories[expense.category as ExpenseCategory];
       const catColor = cat?.color || '#666';
       return `
         <div class="expense-item" data-id="${expense.id}">
@@ -362,7 +383,7 @@ const loadStatsIncomes = () => {
     `;
   } else {
     container.innerHTML = incomes.map(income => {
-      const cat = categories[income.category as Category];
+      const cat = incomeCategories[income.category as IncomeCategory];
       const catColor = cat?.color || '#22c55e';
       return `
         <div class="expense-item" data-id="${income.id}">
@@ -511,6 +532,294 @@ const loadBudgetsView = () => {
   renderBudgetsList();
 };
 
+const loadProfileView = () => {
+  loadUserSettings();
+  loadCategoriesList();
+  setupProfileTabs();
+};
+
+const loadUserSettings = () => {
+  const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+  const nameInput = document.getElementById('profile-name') as HTMLInputElement;
+  const emailInput = document.getElementById('profile-email') as HTMLInputElement;
+
+  if (nameInput) nameInput.value = settings.name || '';
+  if (emailInput) emailInput.value = settings.email || '';
+  updateProfileAvatar(settings.name || '');
+};
+
+const updateProfileAvatar = (name: string) => {
+  const avatarEl = document.getElementById('profile-avatar');
+  if (!avatarEl) return;
+
+  if (name.trim()) {
+    const initial = name.charAt(0).toUpperCase();
+    avatarEl.innerHTML = `<span class="profile-avatar-initial">${initial}</span>`;
+    avatarEl.style.background = '#30c9e8';
+  } else {
+    avatarEl.innerHTML = '<span class="material-symbols-outlined">account_circle</span>';
+    avatarEl.style.background = '';
+  }
+};
+
+const saveUserSettings = () => {
+  const nameInput = document.getElementById('profile-name') as HTMLInputElement;
+  const emailInput = document.getElementById('profile-email') as HTMLInputElement;
+
+  const settings = {
+    name: nameInput?.value?.trim() || '',
+    email: emailInput?.value?.trim() || ''
+  };
+
+  localStorage.setItem('userSettings', JSON.stringify(settings));
+  updateProfileAvatar(settings.name);
+  showSnackbar('Perfil guardado', 'success');
+};
+
+const getCustomCategories = (): Array<{id: string; name: string; icon: string; color: string; type: 'expense' | 'income'}> => {
+  return JSON.parse(localStorage.getItem('customCategories') || '[]');
+};
+
+const saveCustomCategories = (categories: Array<{id: string; name: string; icon: string; color: string; type: 'expense' | 'income'}>) => {
+  localStorage.setItem('customCategories', JSON.stringify(categories));
+};
+
+const loadCategoriesList = () => {
+  const container = document.getElementById('categories-list');
+  if (!container) return;
+
+  const customCategories = getCustomCategories();
+
+  if (customCategories.length === 0) {
+    container.innerHTML = `
+      <div class="expense-empty">
+        <span class="material-symbols-outlined" style="font-size: 48px; opacity: 0.3;">category</span>
+        <p>No hay categorías personalizadas</p>
+        <small>Agrega categorías para organizar tus gastos</small>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = customCategories.map(cat => `
+    <div class="category-item" data-id="${cat.id}">
+      <div class="category-item-left">
+        <div class="category-item-icon" style="background: ${cat.color}20; color: ${cat.color};">
+          <span class="material-symbols-outlined">${cat.icon}</span>
+        </div>
+        <span class="category-item-name">${cat.name}</span>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.category-item').forEach(item => {
+    const category = customCategories.find(c => c.id === (item as HTMLElement).dataset.id);
+    if (category) {
+      initSwipeCategory(
+        item as HTMLElement,
+        category,
+        (id) => editCategory(id),
+        (id) => deleteCategory(id)
+      );
+    }
+  });
+};
+
+const availableIcons = [
+  'shopping_bag', 'restaurant', 'local_gas_station', 'directions_bus',
+  'home', 'bolt', 'wifi', 'checkroom', 'devices', 'medication',
+  'medical_services', 'smart_display', 'sports_esports', 'school',
+  'build', 'account_balance', 'spa', 'cleaning_services',
+  'card_giftcard', 'pets', 'flight', 'more_horiz', 'star', 'favorite',
+  'music_note', 'sports_soccer', 'fitness_center', 'local_hospital',
+  'school', 'work', 'savings', 'attach_money', 'credit_card'
+];
+
+const availableColors = [
+  '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
+  '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#30c9e8'
+];
+
+const openCategoryModal = (categoryId?: string) => {
+  const overlay = document.getElementById('category-modal-overlay');
+  const titleEl = document.getElementById('category-modal-title');
+  const nameInput = document.getElementById('category-name') as HTMLInputElement;
+  const iconInput = document.getElementById('category-icon') as HTMLInputElement;
+  const colorInput = document.getElementById('category-color') as HTMLInputElement;
+
+  const iconPicker = document.getElementById('icon-picker');
+  const colorPicker = document.getElementById('color-picker');
+
+  if (iconPicker) {
+    iconPicker.innerHTML = availableIcons.map(icon => `
+      <div class="icon-picker-item" data-icon="${icon}">
+        <span class="material-symbols-outlined">${icon}</span>
+      </div>
+    `).join('');
+  }
+
+  if (colorPicker) {
+    colorPicker.innerHTML = availableColors.map(color => `
+      <div class="color-picker-item" data-color="${color}" style="background: ${color};"></div>
+    `).join('');
+  }
+
+  if (categoryId) {
+    const categories = getCustomCategories();
+    const category = categories.find(c => c.id === categoryId);
+    if (category && titleEl) {
+      titleEl.textContent = 'Editar Categoría';
+      if (nameInput) nameInput.value = category.name;
+      if (iconInput) iconInput.value = category.icon;
+      if (colorInput) colorInput.value = category.color;
+    }
+    (window as any).__editingCategoryId__ = categoryId;
+  } else {
+    if (titleEl) titleEl.textContent = 'Agregar Categoría';
+    if (nameInput) nameInput.value = '';
+    if (iconInput) iconInput.value = 'category';
+    if (colorInput) colorInput.value = '#30c9e8';
+    delete (window as any).__editingCategoryId__;
+  }
+
+  iconPicker?.querySelectorAll('.icon-picker-item').forEach(item => {
+    item.addEventListener('click', () => {
+      iconPicker.querySelectorAll('.icon-picker-item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+      if (iconInput) iconInput.value = item.getAttribute('data-icon') || 'category';
+    });
+  });
+
+  colorPicker?.querySelectorAll('.color-picker-item').forEach(item => {
+    item.addEventListener('click', () => {
+      colorPicker.querySelectorAll('.color-picker-item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+      if (colorInput) colorInput.value = item.getAttribute('data-color') || '#30c9e8';
+    });
+  });
+
+  if (overlay) overlay.classList.add('active');
+};
+
+const closeCategoryModal = () => {
+  const overlay = document.getElementById('category-modal-overlay');
+  if (overlay) overlay.classList.remove('active');
+  delete (window as any).__editingCategoryId__;
+};
+
+const saveCategory = () => {
+  const nameInput = document.getElementById('category-name') as HTMLInputElement;
+  const iconInput = document.getElementById('category-icon') as HTMLInputElement;
+  const colorInput = document.getElementById('category-color') as HTMLInputElement;
+  const typeSelect = document.getElementById('category-type') as HTMLSelectElement;
+
+  const name = nameInput?.value?.trim();
+  const icon = iconInput?.value || 'category';
+  const color = colorInput?.value || '#30c9e8';
+  const type = (typeSelect?.value || 'expense') as 'expense' | 'income';
+
+  if (!name) {
+    showSnackbar('Ingresa un nombre', 'error');
+    return;
+  }
+
+  const categories = getCustomCategories();
+  const editingId = (window as any).__editingCategoryId__;
+
+  if (editingId) {
+    const index = categories.findIndex(c => c.id === editingId);
+    if (index !== -1) {
+      categories[index] = { ...categories[index], name, icon, color, type };
+    }
+  } else {
+    categories.push({
+      id: crypto.randomUUID(),
+      name,
+      icon,
+      color,
+      type
+    });
+  }
+
+  saveCustomCategories(categories);
+  closeCategoryModal();
+  loadCategoriesList();
+  loadCategorySelect();
+  loadIncomeCategorySelect();
+  showSnackbar(editingId ? 'Categoría actualizada' : 'Categoría creada', 'success');
+};
+
+const editCategory = (id: string) => {
+  openCategoryModal(id);
+};
+
+const deleteCategory = (id: string) => {
+  const categories = getCustomCategories();
+  const category = categories.find(c => c.id === id);
+  if (!category) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-popup-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-popup">
+      <div class="confirm-popup-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <h3 class="confirm-popup-title">Eliminar Categoría</h3>
+      <p class="confirm-popup-message">¿Estás seguro de eliminar la categoría <strong>${category.name}</strong>?</p>
+      <div class="confirm-popup-buttons">
+        <button class="confirm-popup-btn cancel" data-cancel>Cancelar</button>
+        <button class="confirm-popup-btn danger" data-confirm>Eliminar</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const cleanup = () => {
+    overlay.remove();
+  };
+
+  const handleConfirm = () => {
+    cleanup();
+    const updatedCategories = getCustomCategories().filter(c => c.id !== id);
+    saveCustomCategories(updatedCategories);
+    loadCategoriesList();
+    loadCategorySelect();
+    loadIncomeCategorySelect();
+    showSnackbar('Categoría eliminada', 'success');
+  };
+
+  overlay.querySelector('[data-cancel]')?.addEventListener('click', cleanup);
+  overlay.querySelector('[data-confirm]')?.addEventListener('click', handleConfirm);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) cleanup();
+  });
+};
+
+const setupProfileTabs = () => {
+  const tabs = document.querySelectorAll('.profile-tab');
+  const userSection = document.getElementById('profile-user-section');
+  const categoriesSection = document.getElementById('profile-categories-section');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabName = tab.getAttribute('data-tab');
+
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      if (tabName === 'user' && userSection && categoriesSection) {
+        userSection.classList.remove('hidden');
+        categoriesSection.classList.add('hidden');
+      } else if (tabName === 'categories' && userSection && categoriesSection) {
+        userSection.classList.add('hidden');
+        categoriesSection.classList.remove('hidden');
+      }
+    });
+  });
+};
+
 const getCategoryIcon = (category: string): string => {
   const iconMap: Record<string, string> = {
     food_home: 'local_grocery_store',
@@ -632,7 +941,7 @@ const handleSaveIncome = () => {
 
   const amount = parseFloat(amountInput?.value || '0');
   const detail = detailInput?.value?.trim() || '';
-  const category = categorySelect?.value as Category;
+  const category = categorySelect?.value as IncomeCategory;
   const date = dateInput?.value || new Date().toISOString().split('T')[0];
 
   if (!amount || amount <= 0) {
@@ -859,21 +1168,46 @@ const clearExpenseForm = () => {
 const loadCategorySelect = () => {
   const select = document.getElementById('expense-category') as HTMLSelectElement;
   const budgetSelect = document.getElementById('budget-category') as HTMLSelectElement;
+  const customCategories = getCustomCategories();
+  const customExpenseCategories = customCategories.filter(c => c.type === 'expense');
 
   if (select) {
-    const options = Object.entries(categories)
+    const defaultOptions = Object.entries(expenseCategories)
       .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
       .join('');
-    select.innerHTML = options;
+    const customOptions = customExpenseCategories
+      .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
+      .join('');
+    select.innerHTML = defaultOptions + customOptions;
   }
 
   if (budgetSelect) {
-    budgetSelect.innerHTML = Object.entries(categories)
+    const defaultOptions = Object.entries(expenseCategories)
       .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
       .join('');
+    const customOptions = customExpenseCategories
+      .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
+      .join('');
+    budgetSelect.innerHTML = defaultOptions + customOptions;
   }
 
   loadQuickCategories();
+};
+
+const loadIncomeCategorySelect = () => {
+  const select = document.getElementById('income-category') as HTMLSelectElement;
+  const customCategories = getCustomCategories();
+  const customIncomeCategories = customCategories.filter(c => c.type === 'income');
+
+  if (select) {
+    const defaultOptions = Object.entries(incomeCategories)
+      .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
+      .join('');
+    const customOptions = customIncomeCategories
+      .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
+      .join('');
+    select.innerHTML = '<option value="">Selecciona una opción</option>' + defaultOptions + customOptions;
+  }
 };
 
 const loadQuickCategories = () => {
@@ -883,7 +1217,7 @@ const loadQuickCategories = () => {
   const topCategories = ['food_home', 'transport_public', 'shopping_general', 'housing_utilities'];
 
   container.innerHTML = topCategories.map(cat => {
-    const c = categories[cat as Category];
+    const c = expenseCategories[cat as ExpenseCategory];
     return `
       <div class="quick-category" data-category="${cat}" style="border-color: ${c?.color}30;">
         <span class="material-symbols-outlined" style="font-size: 18px;">${getCategoryIcon(cat)}</span>
@@ -936,7 +1270,7 @@ const handleSaveExpense = () => {
 
   const amount = parseFloat(amountInput?.value || '0');
   const detail = detailInput?.value?.trim() || '';
-  const category = categorySelect?.value as Category;
+  const category = categorySelect?.value as ExpenseCategory;
   const date = dateInput?.value || new Date().toISOString().split('T')[0];
 
   if (!amount || amount <= 0) {
@@ -1063,6 +1397,16 @@ function setupEventListeners() {
 
   document.getElementById('btn-back-stats')?.addEventListener('click', () => showView('home'));
   document.getElementById('btn-back-budgets')?.addEventListener('click', () => showView('home'));
+  document.getElementById('btn-back-profile')?.addEventListener('click', () => showView('home'));
+
+  document.getElementById('btn-save-profile')?.addEventListener('click', saveUserSettings);
+
+  document.getElementById('btn-add-category')?.addEventListener('click', () => openCategoryModal());
+  document.getElementById('btn-close-category-modal')?.addEventListener('click', closeCategoryModal);
+  document.getElementById('category-modal-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeCategoryModal();
+  });
+  document.getElementById('btn-save-category')?.addEventListener('click', saveCategory);
 
   document.getElementById('alert-adjust')?.addEventListener('click', () => showView('budgets'));
 }
@@ -1100,6 +1444,7 @@ window.addEventListener('budgetDeleted', () => {
 
 async function initApp() {
   loadCategorySelect();
+  loadIncomeCategorySelect();
   clearExpenseForm();
   setupEventListeners();
   initRadialMenu();

@@ -33,12 +33,12 @@
                 <!-- Header -->
                 <header class="dashboard-header">
                     <div class="dashboard-header-left">
-                        <div class="dashboard-avatar">
+                        <div class="dashboard-avatar" id="dashboard-avatar">
                             <span class="material-symbols-outlined">account_circle</span>
                         </div>
                         <div class="dashboard-welcome">
                             <p>Bienvenido,</p>
-                            <h1>SaveIt</h1>
+                            <h1 id="dashboard-username">SaveIt</h1>
                         </div>
                     </div>
                     <button class="dashboard-notifications">
@@ -345,6 +345,107 @@
                 <span id="snackbar-message" class="snackbar-message"></span>
             </div>
 
+            <!-- PROFILE VIEW -->
+            <div id="profile-view" class="view-container view-hidden">
+                <header class="stats-header">
+                    <button id="btn-back-profile" class="stats-back-btn">
+                        <span class="material-symbols-outlined">arrow_back_ios</span>
+                    </button>
+                    <h1 class="stats-title">
+                        <span class="material-symbols-outlined stats-title-icon">person</span>
+                        Perfil
+                    </h1>
+                    <div style="width: 40px;"></div>
+                </header>
+
+                <!-- Profile Tabs -->
+                <div class="profile-tabs">
+                    <button class="profile-tab active" data-tab="user">
+                        <span class="material-symbols-outlined">person</span>
+                        Usuario
+                    </button>
+                    <button class="profile-tab" data-tab="categories">
+                        <span class="material-symbols-outlined">category</span>
+                        Categorías
+                    </button>
+                </div>
+
+                <!-- User Settings Section -->
+                <div id="profile-user-section" class="profile-section">
+                    <div class="profile-avatar-section">
+                        <div class="profile-avatar" id="profile-avatar">
+                            <span class="material-symbols-outlined">account_circle</span>
+                        </div>
+                        <button class="profile-avatar-edit" id="btn-edit-avatar">
+                            <span class="material-symbols-outlined">edit</span>
+                        </button>
+                    </div>
+
+                    <div class="profile-form">
+                        <div class="form-group">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" id="profile-name" class="form-input" placeholder="Tu nombre" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Correo electrónico</label>
+                            <input type="email" id="profile-email" class="form-input" placeholder="tu@email.com" />
+                        </div>
+                        <button class="btn-primary" id="btn-save-profile">Guardar</button>
+                    </div>
+                </div>
+
+                <!-- Categories Section -->
+                <div id="profile-categories-section" class="profile-section hidden">
+                    <div class="section-header" style="margin-top: 20px;">
+                        <h2 class="section-title">Mis Categorías</h2>
+                        <button class="section-action" id="btn-add-category">
+                            <span class="material-symbols-outlined">add</span>
+                        </button>
+                    </div>
+                    <div id="categories-list" class="categories-list"></div>
+                </div>
+            </div>
+
+            <!-- Category Modal -->
+            <div id="category-modal-overlay" class="bottom-sheet-overlay">
+                <div class="bottom-sheet">
+                    <div class="bottom-sheet-handle">
+                        <div class="bottom-sheet-handle-bar"></div>
+                    </div>
+                    <div class="bottom-sheet-header">
+                        <button id="btn-close-category-modal" class="bottom-sheet-close">Cancelar</button>
+                        <h2 class="bottom-sheet-title" id="category-modal-title">Agregar Categoría</h2>
+                        <button id="btn-save-category" class="bottom-sheet-close" style="color: #30c9e8;">Guardar</button>
+                    </div>
+                    <div class="bottom-sheet-content">
+                        <div class="form-group">
+                            <label class="form-label">Tipo</label>
+                            <select id="category-type" class="form-select">
+                                <option value="expense">Gasto</option>
+                                <option value="income">Ingreso</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" id="category-name" class="form-input" placeholder="Nueva categoría" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Icono</label>
+                            <div class="icon-picker" id="icon-picker"></div>
+                            <input type="hidden" id="category-icon" value="category" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Color</label>
+                            <div class="color-picker" id="color-picker"></div>
+                            <input type="hidden" id="category-color" value="#30c9e8" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Bottom Navigation -->
             <nav class="bottom-nav">
                 <div class="bottom-nav-items-left">
@@ -387,7 +488,7 @@
                         <span class="material-symbols-outlined">account_balance_wallet</span>
                         <small>Presupuestos</small>
                     </div>
-                    <div class="bottom-nav-item">
+                    <div class="bottom-nav-item" data-view="profile">
                         <span class="material-symbols-outlined">person</span>
                         <small>Perfil</small>
                     </div>

@@ -1,4 +1,4 @@
-export const categories = {
+export const expenseCategories = {
   food_home: {
     value: "FoodHome",
     label: "Comida (supermercado)",
@@ -223,4 +223,4 @@ export const categories = {
   },
 } as const;
 
-export type Category = keyof typeof categories;
+export type ExpenseCategory = keyof typeof expenseCategories;

@@ -3,7 +3,7 @@ import type { Income } from "../types/Income";
 import { getAllExpenses } from "../features/expenses";
 import { getAllIncomes } from "../features/incomes";
 import { getBudgets, type Budget } from "../features/budgets";
-import { categories } from "../types/Categories";
+import { expenseCategories } from "../types/ExpenseCategories";
 
 export const formatDateTime = (isoString: string): string => {
   const date = new Date(isoString);
@@ -105,10 +105,10 @@ export const getCategoryDistribution = (): CategoryStats[] => {
   return Object.entries(byCategory)
     .map(([cat, amount]) => ({
       category: cat,
-      label: categories[cat as keyof typeof categories]?.label || cat,
+      label: expenseCategories[cat as keyof typeof expenseCategories]?.label || cat,
       amount,
       percentage: (amount / total) * 100,
-      color: categories[cat as keyof typeof categories]?.color || "#666",
+      color: expenseCategories[cat as keyof typeof expenseCategories]?.color || "#666",
     }))
     .sort((a, b) => b.amount - a.amount);
 };

@@ -1,13 +1,13 @@
 import { getAllExpenses } from "./expenses";
 import { getBudgets, addBudget, removeBudget, type Budget, checkBudgetAlerts, type BudgetAlert } from "./budgets";
-import { categories, type Category } from "../types/Categories";
+import { expenseCategories, type ExpenseCategory } from "../types/ExpenseCategories";
 import { initSwipeBudget, openEditBudgetModal } from "../utils/swipe";
 
 export const loadBudgetCategoryOptions = () => {
   const select = document.getElementById('budget-category') as HTMLSelectElement;
   if (!select) return;
   
-  const options = Object.entries(categories)
+  const options = Object.entries(expenseCategories)
     .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
     .join('');
   select.innerHTML = options;
@@ -75,9 +75,9 @@ export const renderBudgetsList = () => {
       .filter(e => e.category === b.category && new Date(e.date) >= periodStart)
       .reduce((sum, e) => sum + e.amount, 0);
 
-    const percentage = (spent / b.amount) * 100;
+    const percentage = b.amount > 0 ? (spent / b.amount) * 100 : 0;
     const progressClass = percentage >= 100 ? 'danger' : percentage >= 80 ? 'warning' : 'safe';
-    const cat = categories[b.category as Category];
+    const cat = expenseCategories[b.category as ExpenseCategory];
     
     return `
       <div class="budget-item" data-category="${b.category}">
@@ -91,7 +91,7 @@ export const renderBudgetsList = () => {
           <p class="budget-item-amount">${spent.toFixed(0)} / ${b.amount}$ <span>(${b.period === 'monthly' ? 'mes' : 'semana'})</span></p>
         </div>
         <div class="budget-progress">
-          <div class="budget-progress-bar ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
+          <div class="budget-progress-bar ${progressClass}" style="width: ${Math.min(percentage || 0, 100)}%"></div>
         </div>
       </div>
     `;
@@ -172,7 +172,7 @@ export const renderBudgetAlerts = (alerts: BudgetAlert[]) => {
   
   if (alertMessage) {
     if (isDanger) {
-      alertMessage.textContent = `¡Has excedido el presupuesto de ${categories[worstAlert.category as Category]?.label || worstAlert.category}!`;
+      alertMessage.textContent = `¡Has excedido el presupuesto de ${expenseCategories[worstAlert.category as ExpenseCategory]?.label || worstAlert.category}!`;
     } else {
       alertMessage.textContent = `Has usado el ${worstAlert.percentage.toFixed(0)}% de tu presupuesto`;
     }
@@ -183,7 +183,7 @@ export const renderBudgetAlerts = (alerts: BudgetAlert[]) => {
     return `
       <div class="budget-alert ${isAlertDanger ? 'danger' : 'warning'}">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <span>${isAlertDanger ? '¡Presupuesto excedido!' : 'Alerta'} ${categories[alert.category as Category]?.label || alert.category}: ${alert.percentage.toFixed(0)}%</span>
+        <span>${isAlertDanger ? '¡Presupuesto excedido!' : 'Alerta'} ${expenseCategories[alert.category as ExpenseCategory]?.label || alert.category}: ${alert.percentage.toFixed(0)}%</span>
       </div>
     `;
   }).join('');

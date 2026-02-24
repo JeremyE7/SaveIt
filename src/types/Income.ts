@@ -1,9 +1,9 @@
-import type { Category } from "./Categories";
+import type { IncomeCategory } from "./IncomeCategories";
 
 export interface Income {
   id: string;
   amount: number;
-  category: Category;
+  category: IncomeCategory;
   detail: string;
   date: string;
 }

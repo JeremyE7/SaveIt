@@ -8,7 +8,7 @@ import { getDataFromLocalStorage } from "../utils/LocalStorage";
 import { openModal } from "../features/modal";
 import type { Expense } from "../types/Expense";
 import type { Income } from "../types/Income";
-import { categories } from "../types/Categories";
+import { expenseCategories } from "../types/ExpenseCategories";
 import { initSwipeExpense, initSwipeIncome, openEditModal, openEditIncomeModal } from "../utils/swipe";
 import { confirmDeleteIncome } from "../features/incomes";
 
@@ -16,7 +16,7 @@ export const $ = <T extends Element>(query: string) =>
   document.querySelector(query) as T;
 
 const generateCategoryOptions = () => {
-  const grouped = Object.entries(categories).reduce(
+  const grouped = Object.entries(expenseCategories).reduce(
     (acc, [key, cat]) => {
       if (!acc[cat.group]) acc[cat.group] = [];
       acc[cat.group].push({ key, ...cat }); // Incluye la key
@@ -24,7 +24,7 @@ const generateCategoryOptions = () => {
     },
     {} as Record<
       string,
-      Array<{ key: string } & (typeof categories)[keyof typeof categories]>
+      Array<{ key: string } & (typeof expenseCategories)[keyof typeof expenseCategories]>
     >,
   );
 
@@ -51,7 +51,7 @@ export const createExpenseElement = (expense: Expense, type: TransactionType = '
   listItem.setAttribute("data-type", type);
   listItem.className = "expense-item";
 
-  const cat = categories[expense.category];
+  const cat = expenseCategories[expense.category];
   const catColor = cat?.color || '#666';
   const isIncome = type === 'income';
   const arrowSymbol = isIncome ? '↑' : '↓';

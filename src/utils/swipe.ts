@@ -287,3 +287,73 @@ export const openEditBudgetModal = (budget: Budget) => {
 
   (window as any).__editingBudgetCategory__ = budget.category;
 };
+
+export interface CustomCategory {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  type: 'expense' | 'income';
+}
+
+export const initSwipeCategory = (
+  element: HTMLElement,
+  category: CustomCategory,
+  onEdit: (id: string) => void,
+  onDelete: (id: string) => void
+) => {
+  let startX = 0;
+  let currentX = 0;
+  let isDragging = false;
+
+  const handleTouchStart = (e: TouchEvent | MouseEvent) => {
+    startX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+    currentX = startX;
+    isDragging = true;
+    element.style.transition = 'none';
+  };
+
+  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
+    if (!isDragging) return;
+    
+    currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+    const diff = currentX - startX;
+    
+    if (diff > 0) {
+      element.style.transform = `translateX(${diff}px)`;
+      element.style.setProperty('--swipe-action', 'edit');
+    } else if (diff < 0) {
+      element.style.transform = `translateX(${diff}px)`;
+      element.style.setProperty('--swipe-action', 'delete');
+    }
+
+    updateSwipeIndicator(element, diff);
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    isDragging = false;
+    
+    const diff = currentX - startX;
+    element.style.transition = 'transform 0.3s ease';
+    element.style.transform = '';
+    element.style.removeProperty('--swipe-action');
+    hideSwipeIndicator(element);
+
+    if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+      if (diff > 0) {
+        onEdit(category.id);
+      } else {
+        onDelete(category.id);
+      }
+    }
+  };
+
+  element.addEventListener('touchstart', handleTouchStart, { passive: true });
+  element.addEventListener('touchmove', handleTouchMove, { passive: true });
+  element.addEventListener('touchend', handleTouchEnd);
+  
+  element.addEventListener('mousedown', handleTouchStart);
+  document.addEventListener('mousemove', handleTouchMove as EventListener);
+  document.addEventListener('mouseup', handleTouchEnd);
+};

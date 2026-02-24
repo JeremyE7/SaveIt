@@ -13,7 +13,7 @@ import {
   getDataFromLocalStorage,
   setDataToLocalStorage,
 } from "../utils/LocalStorage";
-import { categories, type Category } from "../types/Categories";
+import { expenseCategories, type ExpenseCategory } from "../types/ExpenseCategories";
 import { closeModal } from "./modal";
 import { generatePieChart } from "./graphs";
 import { withTransition } from "../utils/viewTransitions";
@@ -101,14 +101,14 @@ export const saveExpense = (event: SubmitEvent) => {
   }
 
   if (expenseToEdit) {
-    editExpense({ ...expenseToEdit, amount, detail, category: formData.get("category") as Category });
+    editExpense({ ...expenseToEdit, amount, detail, category: formData.get("category") as ExpenseCategory });
     showSuccess("Gasto actualizado");
     return;
   }
 
   const newExpense = {
     amount,
-    category: formData.get("category") as Category,
+    category: formData.get("category") as ExpenseCategory,
     detail,
     date: new Date().toISOString(),
     id: crypto.randomUUID(),
@@ -125,7 +125,7 @@ export const saveExpense = (event: SubmitEvent) => {
   showSuccess("Gasto guardado");
 };
 
-export const filterExpenses = (category: Category) => {
+export const filterExpenses = (category: ExpenseCategory) => {
   const expenses = getAllExpenses();
   const filteredExpenses = expenses.filter(
     (expense) => expense.category === category,
@@ -271,7 +271,7 @@ export const drawExpenses = () => {
     } else {
       labels.push(labelName);
       data.push(expense.amount);
-      colors.push(categories[expense.category].color);
+      colors.push(expenseCategories[expense.category].color);
     }
   });
 

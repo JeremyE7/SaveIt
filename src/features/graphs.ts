@@ -1,5 +1,5 @@
 import { Chart, PieController, ArcElement, Tooltip, Legend } from "chart.js";
-import { categories, type Category } from "../types/Categories";
+import { expenseCategories, type ExpenseCategory } from "../types/ExpenseCategories";
 import { filterExpenses } from "./expenses";
 import { $expenseList, addViewTransitionNameToVariousElements, removeViewTransitionNameFromVariousElements, showButton } from "../dom/htmlElements";
 import { withTransition } from "../utils/viewTransitions";
@@ -49,10 +49,10 @@ export const generatePieChart = (
         const liItems = Array.from($expenseList.children) as HTMLElement[];
         addViewTransitionNameToVariousElements(liItems, "list-item");
         withTransition(() => {
-          filterExpenses(label as unknown as Category);
+          filterExpenses(label as unknown as ExpenseCategory);
         });
         removeViewTransitionNameFromVariousElements(liItems);
-        showSuccess(`Filtrado por: ${categories[label as keyof typeof categories].label}`);
+          showSuccess(`Filtrado por: ${expenseCategories[label as keyof typeof expenseCategories].label}`);
 
       },
       plugins: {
@@ -66,9 +66,9 @@ export const generatePieChart = (
               if (!data.labels) return [];
 
               return data.labels.map((label, i) => ({
-                text: categories[label as keyof typeof categories].label,
-                fillStyle: categories[label as keyof typeof categories].color,
-                fontColor: categories[label as keyof typeof categories].color,
+                text: expenseCategories[label as keyof typeof expenseCategories].label,
+                fillStyle: expenseCategories[label as keyof typeof expenseCategories].color,
+                fontColor: expenseCategories[label as keyof typeof expenseCategories].color,
                 hidden: false,
                 index: i,
               }));
