@@ -128,6 +128,11 @@ export const initSwipeIncome = (
 };
 
 const updateSwipeIndicator = (element: HTMLElement, diff: number) => {
+  if (Math.abs(diff) < SWIPE_THRESHOLD) {
+    hideSwipeIndicator(element);
+    return;
+  }
+
   let indicator = element.querySelector('.swipe-indicator') as HTMLElement;
   if (!indicator) {
     indicator = document.createElement('div');

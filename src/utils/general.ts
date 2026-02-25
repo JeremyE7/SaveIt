@@ -3,7 +3,31 @@ import type { Income } from "../types/Income";
 import { getAllExpenses } from "../features/expenses";
 import { getAllIncomes } from "../features/incomes";
 import { getBudgets, type Budget } from "../features/budgets";
-import { expenseCategories } from "../types/ExpenseCategories";
+import { expenseCategories, type ExpenseCategory } from "../types/ExpenseCategories";
+
+const getCustomCategories = (): Array<{id: string; name: string; icon: string; color: string; type: 'expense' | 'income'}> => {
+  return JSON.parse(localStorage.getItem('customCategories') || '[]');
+};
+
+const getExpenseCategoryLabel = (category: string): string => {
+  if (category.startsWith('custom_')) {
+    const categoryId = category.replace('custom_', '');
+    const customCategories = getCustomCategories();
+    const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+    if (customCat) return customCat.name;
+  }
+  return expenseCategories[category as ExpenseCategory]?.label || category;
+};
+
+const getExpenseCategoryColor = (category: string): string => {
+  if (category.startsWith('custom_')) {
+    const categoryId = category.replace('custom_', '');
+    const customCategories = getCustomCategories();
+    const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+    if (customCat) return customCat.color;
+  }
+  return expenseCategories[category as ExpenseCategory]?.color || '#666';
+};
 
 export const formatDateTime = (isoString: string): string => {
   const date = new Date(isoString);
@@ -105,10 +129,10 @@ export const getCategoryDistribution = (): CategoryStats[] => {
   return Object.entries(byCategory)
     .map(([cat, amount]) => ({
       category: cat,
-      label: expenseCategories[cat as keyof typeof expenseCategories]?.label || cat,
+      label: getExpenseCategoryLabel(cat),
       amount,
       percentage: (amount / total) * 100,
-      color: expenseCategories[cat as keyof typeof expenseCategories]?.color || "#666",
+      color: getExpenseCategoryColor(cat),
     }))
     .sort((a, b) => b.amount - a.amount);
 };

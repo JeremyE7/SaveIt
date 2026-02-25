@@ -19,6 +19,7 @@ import { generatePieChart } from "./graphs";
 import { withTransition } from "../utils/viewTransitions";
 import { showSuccess, showError } from "./toast";
 import { updateBudgetAlerts } from "./budgetModal";
+import { getCustomCategories } from "../main";
 
 let expenseToEdit: Expense | null = null;
 
@@ -127,9 +128,20 @@ export const saveExpense = (event: SubmitEvent) => {
 
 export const filterExpenses = (category: ExpenseCategory) => {
   const expenses = getAllExpenses();
-  const filteredExpenses = expenses.filter(
-    (expense) => expense.category === category,
-  );
+  
+  const filteredExpenses = expenses.filter((expense) => {
+    if (expense.category === category) return true;
+    
+    if (category.startsWith('custom_')) {
+      const categoryId = category.replace('custom_', '');
+      const customCategories = getCustomCategories();
+      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+      if (customCat && expense.category === category) return true;
+    }
+    
+    return false;
+  });
+  
   setFilteredExpenses(filteredExpenses);
   loadExpenses();
 };
@@ -263,15 +275,40 @@ export const drawExpenses = () => {
   const data: number[] = [];
   const colors: string[] = [];
 
+  const getExpenseColor = (category: string): string => {
+    if (category.startsWith('custom_')) {
+      const categoryId = category.replace('custom_', '');
+      const customCategories = getCustomCategories();
+      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+      if (customCat) return customCat.color;
+    }
+    return expenseCategories[category as ExpenseCategory]?.color || '#666';
+  };
+
+  const getExpenseLabel = (category: string): string => {
+    if (category.startsWith('custom_')) {
+      const categoryId = category.replace('custom_', '');
+      const customCategories = getCustomCategories();
+      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+      if (customCat) return customCat.name;
+    }
+    return expenseCategories[category as ExpenseCategory]?.label || category;
+  };
+
+  const categoryMap = new Map<string, string>();
+
   expenses.forEach((expense) => {
-    const labelName = expense.category;
-    if (labels.includes(labelName)) {
-      const index = labels.indexOf(labelName);
+    if (!categoryMap.has(expense.category)) {
+      categoryMap.set(expense.category, getExpenseLabel(expense.category));
+    }
+    const labelName = categoryMap.get(expense.category);
+    if (labels.includes(labelName || expense.category)) {
+      const index = labels.indexOf(labelName || expense.category);
       data[index] += expense.amount;
     } else {
-      labels.push(labelName);
+      labels.push(labelName || expense.category);
       data.push(expense.amount);
-      colors.push(expenseCategories[expense.category].color);
+      colors.push(getExpenseColor(expense.category));
     }
   });
 

@@ -4,10 +4,22 @@ import { filterExpenses } from "./expenses";
 import { $expenseList, addViewTransitionNameToVariousElements, removeViewTransitionNameFromVariousElements, showButton } from "../dom/htmlElements";
 import { withTransition } from "../utils/viewTransitions";
 import { showSuccess } from "./toast";
+import { getCustomCategories } from "../main";
 
 Chart.register(PieController, ArcElement, Tooltip, Legend);
 
 let chartInstance: Chart | null = null;
+
+const getCategoryLabel = (category: string): string => {
+  if (category.startsWith('custom_')) {
+    const categoryId = category.replace('custom_', '');
+    const customCategories = getCustomCategories();
+    const customCat = customCategories.find((c: { id: string; type: string }) => c.id === categoryId && c.type === 'expense');
+    if (customCat) return customCat.name;
+  }
+  const cat = expenseCategories[category as ExpenseCategory];
+  return cat?.label || category;
+};
 
 export const generatePieChart = (
   labels: string[],
@@ -17,12 +29,8 @@ export const generatePieChart = (
   const canvas = document.getElementById("chart") as HTMLCanvasElement;
 
   if (chartInstance) {
-    chartInstance.data.labels = labels;
-    chartInstance.data.datasets[0].data = data;
-    chartInstance.data.datasets[0].backgroundColor = colors;
-    chartInstance.data.datasets[0].borderColor = colors;
-    chartInstance.update();
-    return chartInstance;
+    chartInstance.destroy();
+    chartInstance = null;
   }
 
   chartInstance = new Chart(canvas, {
@@ -33,6 +41,7 @@ export const generatePieChart = (
         {
           data,
           backgroundColor: colors,
+          borderColor: colors,
         },
       ],
     },
@@ -52,7 +61,7 @@ export const generatePieChart = (
           filterExpenses(label as unknown as ExpenseCategory);
         });
         removeViewTransitionNameFromVariousElements(liItems);
-          showSuccess(`Filtrado por: ${expenseCategories[label as keyof typeof expenseCategories].label}`);
+        showSuccess(`Filtrado por: ${getCategoryLabel(label as string)}`);
 
       },
       plugins: {
@@ -60,20 +69,9 @@ export const generatePieChart = (
           position: "bottom",
           align: "center",
           labels: {
-            generateLabels: (chart) => {
-              const data = chart.data;
-
-              if (!data.labels) return [];
-
-              return data.labels.map((label, i) => ({
-                text: expenseCategories[label as keyof typeof expenseCategories].label,
-                fillStyle: expenseCategories[label as keyof typeof expenseCategories].color,
-                fontColor: expenseCategories[label as keyof typeof expenseCategories].color,
-                hidden: false,
-                index: i,
-              }));
-            },
+            color: '#94a3b8',
             usePointStyle: true,
+            pointStyle: 'circle',
             padding: 20,
           },
         },
@@ -82,4 +80,11 @@ export const generatePieChart = (
   });
 
   return chartInstance;
+};
+
+export const destroyChart = () => {
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
 };

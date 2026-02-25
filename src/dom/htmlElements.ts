@@ -9,8 +9,10 @@ import { openModal } from "../features/modal";
 import type { Expense } from "../types/Expense";
 import type { Income } from "../types/Income";
 import { expenseCategories } from "../types/ExpenseCategories";
+import { incomeCategories } from "../types/IncomeCategories";
 import { initSwipeExpense, initSwipeIncome, openEditModal, openEditIncomeModal } from "../utils/swipe";
 import { confirmDeleteIncome } from "../features/incomes";
+import { getCustomCategories } from "../main";
 
 export const $ = <T extends Element>(query: string) =>
   document.querySelector(query) as T;
@@ -51,9 +53,38 @@ export const createExpenseElement = (expense: Expense, type: TransactionType = '
   listItem.setAttribute("data-type", type);
   listItem.className = "expense-item";
 
-  const cat = expenseCategories[expense.category];
-  const catColor = cat?.color || '#666';
   const isIncome = type === 'income';
+  let cat: { label?: string; color?: string } | undefined;
+  let catIcon: string;
+  let catColor: string;
+
+  if (isIncome) {
+    const customCategories = getCustomCategories();
+    const categoryId = expense.category.replace('custom_', '');
+    const customCat = customCategories.find(c => c.id === categoryId && c.type === 'income');
+    if (customCat) {
+      cat = { label: customCat.name, color: customCat.color };
+      catIcon = customCat.icon;
+    } else {
+      const incomeCatKey = expense.category as keyof typeof incomeCategories;
+      cat = incomeCategories[incomeCatKey];
+      catIcon = getCategoryIcon(expense.category);
+    }
+  } else {
+    const customCategories = getCustomCategories();
+    const categoryId = expense.category.replace('custom_', '');
+    const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+    if (customCat) {
+      cat = { label: customCat.name, color: customCat.color };
+      catIcon = customCat.icon;
+    } else {
+      const expenseCatKey = expense.category as keyof typeof expenseCategories;
+      cat = expenseCategories[expenseCatKey];
+      catIcon = getCategoryIcon(expense.category);
+    }
+  }
+
+  catColor = cat?.color || '#666';
   const arrowSymbol = isIncome ? '↑' : '↓';
   const amountPrefix = isIncome ? '+' : '-';
   const amountClass = isIncome ? 'expense-item-amount income' : 'expense-item-amount';
@@ -61,7 +92,7 @@ export const createExpenseElement = (expense: Expense, type: TransactionType = '
   listItem.innerHTML = `
     <div class="expense-item-left">
       <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
-        <span class="material-symbols-outlined" style="font-size: 20px;">${getCategoryIcon(expense.category)}</span>
+        <span class="material-symbols-outlined" style="font-size: 20px;">${catIcon}</span>
       </div>
       <div class="expense-item-details">
         <div class="expense-item-title-row">
@@ -134,6 +165,12 @@ const getCategoryIcon = (category: string): string => {
     pets: 'pets',
     travel: 'flight',
     other: 'more_horiz',
+    salary: 'payments',
+    freelance: 'laptop_mac',
+    bonus: 'stars',
+    investment: 'trending_up',
+    gift: 'card_giftcard',
+    other_income: 'attach_money',
   };
   return iconMap[category] || 'receipt';
 };

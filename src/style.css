@@ -1050,8 +1050,11 @@ li span {
 
 .category-legend-value {
     font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-primary);
+    color: var(--color-text-secondary);
+}
+
+#chart-container .chartjs-legend .chartjs-legend-item span {
+    background-color: transparent !important;
 }
 
 .action-buttons {

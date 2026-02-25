@@ -25,6 +25,77 @@ const viewOrder: Record<string, number> = {
   profile: 3
 };
 
+const viewNames = Object.keys(viewOrder);
+
+const initViewSwipe = () => {
+  const appContainer = document.querySelector('.app-container') as HTMLElement;
+  if (!appContainer) return;
+
+  let startX = 0;
+  let currentX = 0;
+  let isDragging = false;
+  let ignoreViewSwipe = false;
+  const SWIPE_THRESHOLD = 100;
+
+  const handleTouchStart = (e: TouchEvent) => {
+    const target = e.target as HTMLElement;
+    const isOnItem = target.closest('.expense-item');
+    
+    if (isOnItem) {
+      ignoreViewSwipe = true;
+      return;
+    }
+    
+    ignoreViewSwipe = false;
+    startX = e.touches[0].clientX;
+    currentX = startX;
+    isDragging = true;
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isDragging || ignoreViewSwipe) return;
+    currentX = e.touches[0].clientX;
+    const diffX = Math.abs(currentX - startX);
+    if (diffX < 10) {
+      isDragging = false;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (ignoreViewSwipe) {
+      isDragging = false;
+      ignoreViewSwipe = false;
+      return;
+    }
+    
+    if (!isDragging) return;
+    isDragging = false;
+
+    const diffX = currentX - startX;
+    const isHorizontalSwipe = Math.abs(diffX) > SWIPE_THRESHOLD;
+
+    if (isHorizontalSwipe) {
+      const currentIndex = viewOrder[currentView];
+      
+      if (diffX < 0 && currentIndex < viewNames.length - 1) {
+        const nextView = viewNames[currentIndex + 1];
+        showView(nextView);
+      } else if (diffX > 0 && currentIndex > 0) {
+        const prevView = viewNames[currentIndex - 1];
+        showView(prevView);
+      }
+    }
+
+    startX = 0;
+    currentX = 0;
+    ignoreViewSwipe = false;
+  };
+
+  appContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
+  appContainer.addEventListener('touchmove', handleTouchMove, { passive: true });
+  appContainer.addEventListener('touchend', handleTouchEnd);
+};
+
 const showView = (viewName: string) => {
   if (viewName === currentView) return;
 
@@ -123,15 +194,40 @@ const loadHomeView = () => {
   const data: number[] = [];
   const colors: string[] = [];
 
+  const getExpenseColor = (category: string): string => {
+    if (category.startsWith('custom_')) {
+      const categoryId = category.replace('custom_', '');
+      const customCategories = getCustomCategories();
+      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+      if (customCat) return customCat.color;
+    }
+    return expenseCategories[category as ExpenseCategory]?.color || '#666';
+  };
+
+  const getExpenseLabel = (category: string): string => {
+    if (category.startsWith('custom_')) {
+      const categoryId = category.replace('custom_', '');
+      const customCategories = getCustomCategories();
+      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+      if (customCat) return customCat.name;
+    }
+    return expenseCategories[category as ExpenseCategory]?.label || category;
+  };
+
+  const categoryMap = new Map<string, string>();
+
   expenses.forEach((expense) => {
-    const labelName = expense.category;
-    if (labels.includes(labelName)) {
-      const index = labels.indexOf(labelName);
+    if (!categoryMap.has(expense.category)) {
+      categoryMap.set(expense.category, getExpenseLabel(expense.category));
+    }
+    const labelName = categoryMap.get(expense.category);
+    if (labels.includes(labelName || expense.category)) {
+      const index = labels.indexOf(labelName || expense.category);
       data[index] += expense.amount;
     } else {
-      labels.push(labelName);
+      labels.push(labelName || expense.category);
       data.push(expense.amount);
-      colors.push(expenseCategories[expense.category as ExpenseCategory]?.color || '#666');
+      colors.push(getExpenseColor(expense.category));
     }
   });
 
@@ -323,13 +419,28 @@ const loadStatsExpenses = () => {
     `;
   } else {
     container.innerHTML = expenses.map(expense => {
-      const cat = expenseCategories[expense.category as ExpenseCategory];
+      const customCategories = getCustomCategories();
+      const categoryId = expense.category.replace('custom_', '');
+      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+      
+      let cat: { label?: string; color?: string } | undefined;
+      let catIcon: string;
+
+      if (customCat) {
+        cat = { label: customCat.name, color: customCat.color };
+        catIcon = customCat.icon;
+      } else {
+        const expenseCatKey = expense.category as ExpenseCategory;
+        cat = expenseCategories[expenseCatKey];
+        catIcon = getCategoryIcon(expense.category);
+      }
+
       const catColor = cat?.color || '#666';
       return `
         <div class="expense-item" data-id="${expense.id}">
           <div class="expense-item-left">
             <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
-              <span class="material-symbols-outlined" style="font-size: 20px;">${getCategoryIcon(expense.category)}</span>
+              <span class="material-symbols-outlined" style="font-size: 20px;">${catIcon}</span>
             </div>
             <div class="expense-item-details">
               <p class="expense-item-title">${expense.detail || cat?.label || expense.category}</p>
@@ -383,13 +494,27 @@ const loadStatsIncomes = () => {
     `;
   } else {
     container.innerHTML = incomes.map(income => {
-      const cat = incomeCategories[income.category as IncomeCategory];
+      const customCategories = getCustomCategories();
+      const categoryId = income.category.replace('custom_', '');
+      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'income');
+      let cat: { label?: string; color?: string } | undefined;
+      let catIcon: string;
+
+      if (customCat) {
+        cat = { label: customCat.name, color: customCat.color };
+        catIcon = customCat.icon;
+      } else {
+        const incomeCatKey = income.category as IncomeCategory;
+        cat = incomeCategories[incomeCatKey];
+        catIcon = getCategoryIcon(income.category);
+      }
+
       const catColor = cat?.color || '#22c55e';
       return `
         <div class="expense-item" data-id="${income.id}">
           <div class="expense-item-left">
             <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
-              <span class="material-symbols-outlined" style="font-size: 20px;">${getCategoryIcon(income.category)}</span>
+              <span class="material-symbols-outlined" style="font-size: 20px;">${catIcon}</span>
             </div>
             <div class="expense-item-details">
               <p class="expense-item-title">${income.detail || cat?.label || income.category}</p>
@@ -576,7 +701,7 @@ const saveUserSettings = () => {
   showSnackbar('Perfil guardado', 'success');
 };
 
-const getCustomCategories = (): Array<{id: string; name: string; icon: string; color: string; type: 'expense' | 'income'}> => {
+export const getCustomCategories = (): Array<{id: string; name: string; icon: string; color: string; type: 'expense' | 'income'}> => {
   return JSON.parse(localStorage.getItem('customCategories') || '[]');
 };
 
@@ -758,6 +883,49 @@ const deleteCategory = (id: string) => {
   const category = categories.find(c => c.id === id);
   if (!category) return;
 
+  const expenses = getAllExpenses();
+  const incomes = getAllIncomes();
+  const categoryKey = `custom_${id}`;
+  
+  const expensesUsingCategory = expenses.filter(e => e.category === categoryKey || e.category === id);
+  const incomesUsingCategory = incomes.filter(i => i.category === categoryKey || i.category === id);
+  const totalUsage = expensesUsingCategory.length + incomesUsingCategory.length;
+
+  if (totalUsage > 0) {
+    const expenseCount = expensesUsingCategory.length;
+    const incomeCount = incomesUsingCategory.length;
+    let usageText = '';
+    if (expenseCount > 0 && incomeCount > 0) {
+      usageText = `Está siendo usada en ${expenseCount} gasto(s) y ${incomeCount} ingreso(s)`;
+    } else if (expenseCount > 0) {
+      usageText = `Está siendo usada en ${expenseCount} gasto(s)`;
+    } else {
+      usageText = `Está siendo usada en ${incomeCount} ingreso(s)`;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-popup-overlay';
+    overlay.innerHTML = `
+      <div class="confirm-popup">
+        <div class="confirm-popup-icon" style="color: #ef4444;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h3 class="confirm-popup-title">No se puede eliminar</h3>
+        <p class="confirm-popup-message">La categoría <strong>${category.name}</strong> no se puede eliminar porque ${usageText}.</p>
+        <div class="confirm-popup-buttons">
+          <button class="confirm-popup-btn" data-ok>Aceptar</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-ok]')?.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+    return;
+  }
+
   const overlay = document.createElement('div');
   overlay.className = 'confirm-popup-overlay';
   overlay.innerHTML = `
@@ -845,6 +1013,12 @@ const getCategoryIcon = (category: string): string => {
     pets: 'pets',
     travel: 'flight',
     other: 'more_horiz',
+    salary: 'payments',
+    freelance: 'laptop_mac',
+    bonus: 'stars',
+    investment: 'trending_up',
+    gift: 'card_giftcard',
+    other_income: 'attach_money',
   };
   return iconMap[category] || 'receipt';
 };
@@ -1448,6 +1622,7 @@ async function initApp() {
   clearExpenseForm();
   setupEventListeners();
   initRadialMenu();
+  initViewSwipe();
   loadHomeView();
   checkBudgetAlertsOnLoad();
 }
