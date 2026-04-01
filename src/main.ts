@@ -4,7 +4,7 @@ import { loadExpenses } from "./dom/htmlElements";
 import { getAllExpenses, confirmDeleteExpense, setExpenseToEdit } from "./features/expenses";
 import { getAllIncomes } from "./features/incomes";
 import { checkBudgetAlertsOnLoad, renderBudgetsList, openBudgetConfigModal, closeBudgetConfigModal, handleBudgetConfigSave, updateBudgetPreview } from "./features/budgetModal";
-import { getCurrentMonthTotal, getCurrentMonthExpenses, getCategoryDistribution, getCurrentMonthIncomeTotal, getExpensesByMonth, getIncomesByMonth, getMonthTotal, getIncomeMonthTotal, getAllExpensesTotal, getAllIncomesTotal } from "./utils/general";
+import { getCurrentMonthTotal, getCurrentMonthExpenses, getCategoryDistribution, getCurrentMonthIncomeTotal, getExpensesByMonth, getIncomesByMonth, getMonthTotal, getIncomeMonthTotal, getAllExpensesTotal, getAllIncomesTotal, getTodayLocalInputDateValue } from "./utils/general";
 import { expenseGroups, type ExpenseGroup } from "./types/ExpenseGroups";
 import { incomeCategories, type IncomeCategory } from "./types/IncomeCategories";
 import { generatePieChart } from "./features/graphs";
@@ -258,7 +258,7 @@ const populatePeriodSelect = () => {
 
   for (let year = currentYear; year >= currentYear - 5; year--) {
     const startMonth = year === currentYear ? currentMonth : 11;
-    const endMonth = year === currentYear ? currentMonth : 0;
+    const endMonth = 0;
 
     for (let month = startMonth; month >= endMonth; month--) {
       const option = document.createElement('option');
@@ -1074,7 +1074,7 @@ const openIncomeSheet = () => {
   if (amountInput) amountInput.value = '';
   if (detailInput) detailInput.value = '';
   if (categorySelect) categorySelect.value = '';
-  if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+  if (dateInput) dateInput.value = getTodayLocalInputDateValue();
   if (overlay) overlay.classList.add('active');
 };
 
@@ -1098,7 +1098,7 @@ const handleSaveIncome = () => {
   const amount = parseFloat(amountInput?.value || '0');
   const detail = detailInput?.value?.trim() || '';
   const category = categorySelect?.value as IncomeCategory;
-  const date = dateInput?.value || new Date().toISOString().split('T')[0];
+  const date = dateInput?.value || getTodayLocalInputDateValue();
 
   if (!amount || amount <= 0) {
     showSnackbar('Ingresa un monto válido', 'error');
@@ -1121,7 +1121,7 @@ const handleSaveIncome = () => {
         amount,
         category,
         detail,
-        date: new Date(date).toISOString()
+        date: new Date(`${date}T00:00:00`).toISOString()
       };
       localStorage.setItem('incomes', JSON.stringify(incomes));
       delete (window as any).__editingIncomeId__;
@@ -1144,7 +1144,7 @@ const handleSaveIncome = () => {
     amount,
     category,
     detail,
-    date: new Date(date).toISOString()
+    date: new Date(`${date}T00:00:00`).toISOString()
   };
 
   incomes.unshift(newIncome);
@@ -1315,7 +1315,7 @@ const clearExpenseForm = () => {
 
   if (amountInput) amountInput.value = '';
   if (detailInput) detailInput.value = '';
-  if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+  if (dateInput) dateInput.value = getTodayLocalInputDateValue();
   if (categorySelect) categorySelect.value = '';
   if (titleEl) titleEl.textContent = 'Agregar Gasto';
   delete (window as any).__editingExpenseId__;
@@ -1422,7 +1422,7 @@ const handleSaveExpense = () => {
   const amount = parseFloat(amountInput?.value || '0');
   const detail = detailInput?.value?.trim() || '';
   const category = categorySelect?.value as ExpenseGroup;
-  const date = dateInput?.value || new Date().toISOString().split('T')[0];
+  const date = dateInput?.value || getTodayLocalInputDateValue();
 
   if (!amount || amount <= 0) {
     showSnackbar('Ingresa un monto válido', 'error');
@@ -1445,7 +1445,7 @@ const handleSaveExpense = () => {
         amount,
         category,
         detail,
-        date: new Date(date).toISOString()
+        date: new Date(`${date}T00:00:00`).toISOString()
       };
       localStorage.setItem('expenses', JSON.stringify(expenses));
       localStorage.setItem('filteredExpenses', JSON.stringify(expenses));
@@ -1462,7 +1462,7 @@ const handleSaveExpense = () => {
     amount,
     category,
     detail,
-    date: new Date(date).toISOString()
+    date: new Date(`${date}T00:00:00`).toISOString()
   };
 
   expenses.unshift(newExpense);

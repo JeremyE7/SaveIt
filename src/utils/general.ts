@@ -5,6 +5,47 @@ import { getAllIncomes } from "../features/incomes";
 import { getBudgets, type Budget } from "../features/budgets";
 import { expenseGroups, type ExpenseGroup } from "../types/ExpenseGroups";
 
+const pad2 = (value: number): string => value.toString().padStart(2, '0');
+
+type DateParts = {
+  year: number;
+  month: number;
+  day: number;
+};
+
+const parseStoredDateParts = (dateValue: string): DateParts | null => {
+  const normalizedMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (normalizedMatch) {
+    return {
+      year: Number(normalizedMatch[1]),
+      month: Number(normalizedMatch[2]) - 1,
+      day: Number(normalizedMatch[3]),
+    };
+  }
+
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return {
+    year: parsed.getUTCFullYear(),
+    month: parsed.getUTCMonth(),
+    day: parsed.getUTCDate(),
+  };
+};
+
+export const toInputDateValue = (dateValue: string): string => {
+  const parts = parseStoredDateParts(dateValue);
+  if (!parts) return '';
+
+  return `${parts.year}-${pad2(parts.month + 1)}-${pad2(parts.day)}`;
+};
+
+export const getTodayLocalInputDateValue = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+};
+
 const getCustomCategories = (): Array<{id: string; name: string; icon: string; color: string; type: 'expense' | 'income'}> => {
   return JSON.parse(localStorage.getItem('customCategories') || '[]');
 };
@@ -70,9 +111,13 @@ export const formatDateRelative = (isoString: string): string => {
 export const getCurrentMonthExpenses = (): Expense[] => {
   const expenses = getAllExpenses();
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
 
-  return expenses.filter(e => new Date(e.date) >= monthStart);
+  return expenses.filter((e) => {
+    const parts = parseStoredDateParts(e.date);
+    return parts ? parts.year === currentYear && parts.month === currentMonth : false;
+  });
 };
 
 export const getCurrentMonthTotal = (): number => {
@@ -138,9 +183,13 @@ export const getCategoryDistribution = (): CategoryStats[] => {
 export const getCurrentMonthIncomes = (): Income[] => {
   const incomes = getAllIncomes();
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
 
-  return incomes.filter(e => new Date(e.date) >= monthStart);
+  return incomes.filter((i) => {
+    const parts = parseStoredDateParts(i.date);
+    return parts ? parts.year === currentYear && parts.month === currentMonth : false;
+  });
 };
 
 export const getCurrentMonthIncomeTotal = (): number => {
@@ -155,23 +204,19 @@ export const getBalance = (): number => {
 
 export const getExpensesByMonth = (year: number, month: number): Expense[] => {
   const expenses = getAllExpenses();
-  const monthStart = new Date(year, month, 1);
-  const monthEnd = new Date(year, month + 1, 0);
 
-  return expenses.filter(e => {
-    const date = new Date(e.date);
-    return date >= monthStart && date <= monthEnd;
+  return expenses.filter((e) => {
+    const parts = parseStoredDateParts(e.date);
+    return parts ? parts.year === year && parts.month === month : false;
   });
 };
 
 export const getIncomesByMonth = (year: number, month: number): Income[] => {
   const incomes = getAllIncomes();
-  const monthStart = new Date(year, month, 1);
-  const monthEnd = new Date(year, month + 1, 0);
 
-  return incomes.filter(i => {
-    const date = new Date(i.date);
-    return date >= monthStart && date <= monthEnd;
+  return incomes.filter((i) => {
+    const parts = parseStoredDateParts(i.date);
+    return parts ? parts.year === year && parts.month === month : false;
   });
 };
 

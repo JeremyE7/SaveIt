@@ -1,5 +1,6 @@
 import type { Expense } from "../types/Expense";
 import type { Income } from "../types/Income";
+import { toInputDateValue } from "./general";
 
 const SWIPE_THRESHOLD = 75;
 
@@ -181,7 +182,7 @@ export const openEditModal = (expense: Expense) => {
   if (amountInput) amountInput.value = expense.amount.toString();
   if (detailInput) detailInput.value = expense.detail || '';
   if (categorySelect) categorySelect.value = expense.category;
-  if (dateInput) dateInput.value = new Date(expense.date).toISOString().split('T')[0];
+  if (dateInput) dateInput.value = toInputDateValue(expense.date);
 
   (window as any).__editingExpenseId__ = expense.id;
 };
@@ -205,7 +206,7 @@ export const openEditIncomeModal = (income: Income) => {
   if (amountInput) amountInput.value = income.amount.toString();
   if (detailInput) detailInput.value = income.detail || '';
   if (categorySelect) categorySelect.value = income.category;
-  if (dateInput) dateInput.value = new Date(income.date).toISOString().split('T')[0];
+  if (dateInput) dateInput.value = toInputDateValue(income.date);
 
   (window as any).__editingIncomeId__ = income.id;
 };
