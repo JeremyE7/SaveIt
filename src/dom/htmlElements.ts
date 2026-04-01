@@ -90,6 +90,9 @@ export const createExpenseElement = (expense: Expense, type: TransactionType = '
   const arrowSymbol = isIncome ? '↑' : '↓';
   const amountPrefix = isIncome ? '+' : '-';
   const amountClass = isIncome ? 'expense-item-amount income' : 'expense-item-amount';
+  const sourceBadge = !isIncome && expense.source === 'subscription'
+    ? '<span class="transaction-source-badge">Suscripción</span>'
+    : '';
 
   listItem.innerHTML = `
     <div class="expense-item-left">
@@ -99,6 +102,7 @@ export const createExpenseElement = (expense: Expense, type: TransactionType = '
       <div class="expense-item-details">
         <div class="expense-item-title-row">
           <p class="expense-item-title">${expense.detail || cat?.label || expense.category}</p>
+          ${sourceBadge}
         </div>
         <div class="expense-item-category-badge">
           <span class="badge-dot" style="background: ${catColor};"></span>

@@ -1,5 +1,6 @@
 import type { Expense } from "../types/Expense";
 import type { Income } from "../types/Income";
+import type { Subscription } from "../types/Subscription";
 import { toInputDateValue } from "./general";
 
 const SWIPE_THRESHOLD = 75;
@@ -126,6 +127,117 @@ export const initSwipeIncome = (
   element.addEventListener('mousedown', handleTouchStart);
   document.addEventListener('mousemove', handleTouchMove as EventListener);
   document.addEventListener('mouseup', handleTouchEnd);
+};
+
+export const initSwipeSubscription = (
+  element: HTMLElement,
+  subscription: Subscription,
+  onEdit: (subscription: Subscription) => void,
+  onToggle: (id: string) => void,
+  onDelete: (id: string) => void
+) => {
+  let startX = 0;
+  let currentX = 0;
+  let isDragging = false;
+
+  const handleTouchStart = (e: TouchEvent | MouseEvent) => {
+    startX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+    currentX = startX;
+    isDragging = true;
+    element.style.transition = 'none';
+  };
+
+  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
+    if (!isDragging) return;
+
+    currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+    const diff = currentX - startX;
+
+    if (diff > 0) {
+      element.style.transform = `translateX(${diff}px)`;
+      element.style.setProperty('--swipe-action', 'edit');
+    } else if (diff < 0) {
+      element.style.transform = `translateX(${diff}px)`;
+      element.style.setProperty('--swipe-action', 'delete');
+    }
+
+    updateSubscriptionSwipeIndicator(element, diff, subscription.status);
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const diff = currentX - startX;
+    element.style.transition = 'transform 0.3s ease';
+    element.style.transform = '';
+    element.style.removeProperty('--swipe-action');
+    hideSwipeIndicator(element);
+
+    if (diff >= SWIPE_THRESHOLD) {
+      onEdit(subscription);
+      return;
+    }
+
+    if (diff <= -120) {
+      onDelete(subscription.id);
+      return;
+    }
+
+    if (diff <= -SWIPE_THRESHOLD) {
+      onToggle(subscription.id);
+    }
+  };
+
+  element.addEventListener('touchstart', handleTouchStart, { passive: true });
+  element.addEventListener('touchmove', handleTouchMove, { passive: true });
+  element.addEventListener('touchend', handleTouchEnd);
+
+  element.addEventListener('mousedown', handleTouchStart);
+  document.addEventListener('mousemove', handleTouchMove as EventListener);
+  document.addEventListener('mouseup', handleTouchEnd);
+};
+
+const updateSubscriptionSwipeIndicator = (
+  element: HTMLElement,
+  diff: number,
+  status: Subscription['status']
+) => {
+  if (Math.abs(diff) < SWIPE_THRESHOLD) {
+    hideSwipeIndicator(element);
+    return;
+  }
+
+  let indicator = element.querySelector('.swipe-indicator') as HTMLElement;
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.className = 'swipe-indicator';
+    element.appendChild(indicator);
+  }
+
+  if (diff > 0) {
+    indicator.className = 'swipe-indicator swipe-indicator-edit';
+    indicator.innerHTML = `
+      <span class="material-symbols-outlined">edit</span>
+      <span>Editar</span>
+    `;
+    return;
+  }
+
+  if (diff <= -120) {
+    indicator.className = 'swipe-indicator swipe-indicator-delete';
+    indicator.innerHTML = `
+      <span class="material-symbols-outlined">delete</span>
+      <span>Eliminar</span>
+    `;
+    return;
+  }
+
+  indicator.className = 'swipe-indicator swipe-indicator-toggle';
+  indicator.innerHTML = `
+    <span class="material-symbols-outlined">${status === 'active' ? 'pause_circle' : 'play_circle'}</span>
+    <span>${status === 'active' ? 'Cancelar' : 'Reactivar'}</span>
+  `;
 };
 
 const updateSwipeIndicator = (element: HTMLElement, diff: number) => {

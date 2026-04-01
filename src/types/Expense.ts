@@ -6,4 +6,7 @@ export interface Expense {
   category: ExpenseGroup | `custom_${string}`;
   detail: string;
   date: string;
+  source?: 'manual' | 'subscription';
+  subscriptionId?: string;
+  subscriptionPeriod?: string;
 }

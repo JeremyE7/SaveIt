@@ -8,11 +8,14 @@ import { getCurrentMonthTotal, getCurrentMonthExpenses, getCategoryDistribution,
 import { expenseGroups, type ExpenseGroup } from "./types/ExpenseGroups";
 import { incomeCategories, type IncomeCategory } from "./types/IncomeCategories";
 import { generatePieChart } from "./features/graphs";
-import { initSwipeExpense, initSwipeIncome, initSwipeCategory, openEditModal, openEditIncomeModal } from "./utils/swipe";
+import { initSwipeExpense, initSwipeIncome, initSwipeCategory, initSwipeSubscription, openEditModal, openEditIncomeModal } from "./utils/swipe";
 import { exportData, importData } from "./features/importExport";
 import { confirmDeleteIncome } from "./features/incomes";
+import { confirmDeleteSubscription, getAllSubscriptions, getNextChargeDate, getNotificationPermissionState, processSubscriptionsForToday, requestSubscriptionNotificationPermission, toggleSubscriptionStatus, upsertSubscription } from "./features/subscriptions";
+import { initializeFirestoreSync } from "./features/firestoreSync";
 import type { Expense } from "./types/Expense";
 import type { Income } from "./types/Income";
+import type { Subscription } from "./types/Subscription";
 
 registerSW({ immediate: false });
 
@@ -21,8 +24,9 @@ let currentView = 'home';
 const viewOrder: Record<string, number> = {
   home: 0,
   stats: 1,
-  budgets: 2,
-  profile: 3
+  subscriptions: 2,
+  budgets: 3,
+  profile: 4
 };
 
 const viewNames = Object.keys(viewOrder);
@@ -120,7 +124,7 @@ const showView = (viewName: string) => {
     currentEl?.classList.remove('view-slide-out-left', 'view-slide-out-right');
     newEl?.classList.remove('view-slide-in-right', 'view-slide-in-left');
 
-    const views = ['home-view', 'stats-view', 'budgets-view', 'profile-view'];
+    const views = ['home-view', 'stats-view', 'subscriptions-view', 'budgets-view', 'profile-view'];
     views.forEach(view => {
       const el = document.getElementById(view);
       if (el) {
@@ -140,6 +144,8 @@ const showView = (viewName: string) => {
 
   if (viewName === 'stats') {
     loadStatsView();
+  } else if (viewName === 'subscriptions') {
+    loadSubscriptionsView();
   } else if (viewName === 'budgets') {
     loadBudgetsView();
   } else if (viewName === 'profile') {
@@ -327,13 +333,14 @@ const populateCategoryFilter = (type: 'expenses' | 'incomes' = 'expenses') => {
   const customCategories = getCustomCategories();
 
   if (type === 'expenses') {
+    const subscriptionOption = '<option value="__subscription__">Suscripciones</option>';
     const defaultOptions = Object.entries(expenseGroups)
       .map(([key, group]) => `<option value="${key}">${group.label}</option>`)
       .join('');
     const customOptions = customCategories.filter(c => c.type === 'expense')
       .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
       .join('');
-    options = defaultOptions + customOptions;
+    options = subscriptionOption + defaultOptions + customOptions;
   } else {
     const defaultOptions = Object.entries(incomeCategories)
       .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
@@ -369,7 +376,11 @@ const getFilteredExpenses = (): Expense[] => {
     expenses = expenses.filter(e => new Date(e.date) <= new Date(dateEnd + 'T23:59:59'));
   }
   if (categoryFilter) {
-    expenses = expenses.filter(e => e.category === categoryFilter);
+    if (categoryFilter === '__subscription__') {
+      expenses = expenses.filter(e => e.source === 'subscription');
+    } else {
+      expenses = expenses.filter(e => e.category === categoryFilter);
+    }
   }
 
   return expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -436,6 +447,10 @@ const loadStatsExpenses = () => {
       }
 
       const catColor = cat?.color || '#666';
+      const subscriptionBadge = expense.source === 'subscription'
+        ? '<span class="transaction-source-badge">Suscripción</span>'
+        : '';
+
       return `
         <div class="expense-item" data-id="${expense.id}">
           <div class="expense-item-left">
@@ -443,7 +458,10 @@ const loadStatsExpenses = () => {
               <span class="material-symbols-outlined" style="font-size: 20px;">${catIcon}</span>
             </div>
             <div class="expense-item-details">
-              <p class="expense-item-title">${expense.detail || cat?.label || expense.category}</p>
+              <div class="expense-item-title-row">
+                <p class="expense-item-title">${expense.detail || cat?.label || expense.category}</p>
+                ${subscriptionBadge}
+              </div>
               <div class="expense-item-category-badge">
                 <span class="badge-dot" style="background: ${catColor};"></span>
                 ${cat?.label || expense.category}
@@ -655,6 +673,281 @@ const setupStatsImportExport = () => {
 
 const loadBudgetsView = () => {
   renderBudgetsList();
+};
+
+const updateSubscriptionNotificationStatus = () => {
+  const statusEl = document.getElementById('subscription-notification-status');
+  if (!statusEl) return;
+
+  const state = getNotificationPermissionState();
+
+  if (state === 'unsupported') {
+    statusEl.textContent = 'Estado: no soportado en este navegador';
+    return;
+  }
+
+  if (state === 'granted') {
+    statusEl.textContent = 'Estado: activadas';
+  } else if (state === 'denied') {
+    statusEl.textContent = 'Estado: bloqueadas';
+  } else {
+    statusEl.textContent = 'Estado: pendiente de permiso';
+  }
+};
+
+const loadSubscriptionCategorySelect = () => {
+  const select = document.getElementById('subscription-category') as HTMLSelectElement;
+  if (!select) return;
+
+  select.innerHTML = Object.entries(expenseGroups)
+    .map(([key, group]) => `<option value="${key}">${group.label}</option>`)
+    .join('');
+};
+
+const closeSubscriptionSheet = () => {
+  const overlay = document.getElementById('subscription-sheet-overlay');
+  if (overlay) overlay.classList.remove('active');
+  delete (window as any).__editingSubscriptionId__;
+};
+
+const openSubscriptionSheet = (subscription?: Subscription) => {
+  const overlay = document.getElementById('subscription-sheet-overlay');
+  const title = document.getElementById('subscription-sheet-title');
+  const nameInput = document.getElementById('subscription-name') as HTMLInputElement;
+  const amountInput = document.getElementById('subscription-amount') as HTMLInputElement;
+  const categoryInput = document.getElementById('subscription-category') as HTMLSelectElement;
+  const billingDayInput = document.getElementById('subscription-billing-day') as HTMLInputElement;
+  const startDateInput = document.getElementById('subscription-start-date') as HTMLInputElement;
+  const notifyEnabledInput = document.getElementById('subscription-notify-enabled') as HTMLInputElement;
+  const notifyDaysInput = document.getElementById('subscription-notify-days') as HTMLInputElement;
+
+  loadSubscriptionCategorySelect();
+
+  if (subscription) {
+    if (title) title.textContent = 'Editar Suscripción';
+    if (nameInput) nameInput.value = subscription.name;
+    if (amountInput) amountInput.value = subscription.amount.toString();
+    if (categoryInput) categoryInput.value = subscription.category;
+    if (billingDayInput) billingDayInput.value = subscription.billingDay.toString();
+    if (startDateInput) startDateInput.value = subscription.startDate;
+    if (notifyEnabledInput) notifyEnabledInput.checked = subscription.notifyEnabled;
+    if (notifyDaysInput) notifyDaysInput.value = subscription.notifyDaysBefore.toString();
+    (window as any).__editingSubscriptionId__ = subscription.id;
+  } else {
+    if (title) title.textContent = 'Agregar Suscripción';
+    if (nameInput) nameInput.value = '';
+    if (amountInput) amountInput.value = '';
+    if (categoryInput) categoryInput.value = 'needs';
+    if (billingDayInput) billingDayInput.value = '1';
+    if (startDateInput) startDateInput.value = getTodayLocalInputDateValue();
+    if (notifyEnabledInput) notifyEnabledInput.checked = true;
+    if (notifyDaysInput) notifyDaysInput.value = '1';
+    delete (window as any).__editingSubscriptionId__;
+  }
+
+  if (overlay) overlay.classList.add('active');
+};
+
+const renderSubscriptionsList = () => {
+  const container = document.getElementById('subscriptions-list');
+  if (!container) return;
+
+  const subscriptions = getAllSubscriptions();
+
+  if (subscriptions.length === 0) {
+    container.innerHTML = `
+      <div class="expense-empty">
+        <div class="expense-empty-icon">🔁</div>
+        <p>No tienes suscripciones</p>
+        <small>Crea una suscripción para automatizar gastos mensuales.</small>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = subscriptions.map((subscription) => {
+    const category = expenseGroups[subscription.category];
+    const nextCharge = getNextChargeDate(subscription).toLocaleDateString('es-EC', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    return `
+      <div class="expense-item" data-subscription-id="${subscription.id}">
+        <div class="expense-item-left">
+          <div class="expense-item-icon" style="background: ${category.color}20; color: ${category.color};">
+            <span class="material-symbols-outlined" style="font-size: 20px;">${category.icon}</span>
+          </div>
+          <div class="expense-item-details">
+            <div class="expense-item-title-row">
+              <p class="expense-item-title">${subscription.name}</p>
+            </div>
+            <div class="expense-item-category-badge">
+              <span class="badge-dot" style="background: ${category.color};"></span>
+              ${category.label} · Día ${subscription.billingDay}
+            </div>
+            <div class="subscription-meta">
+              <span class="subscription-status ${subscription.status}">${subscription.status === 'active' ? 'ACTIVA' : 'CANCELADA'}</span>
+              <span class="subscription-next-charge">Próximo cobro: ${nextCharge}</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+          <div class="expense-item-amount">-$${subscription.amount.toFixed(2)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.expense-item[data-subscription-id]').forEach((item) => {
+    const id = (item as HTMLElement).dataset.subscriptionId;
+    if (!id) return;
+    const subscription = subscriptions.find((entry) => entry.id === id);
+    if (!subscription) return;
+
+    initSwipeSubscription(
+      item as HTMLElement,
+      subscription,
+      (sub) => {
+        openSubscriptionSheet(sub);
+      },
+      (subscriptionId) => {
+        toggleSubscriptionStatus(subscriptionId);
+        renderSubscriptionsList();
+        showSnackbar('Suscripción actualizada', 'success');
+      },
+      (subscriptionId) => {
+        confirmDeleteSubscription(subscriptionId);
+      }
+    );
+  });
+};
+
+const handleSaveSubscription = () => {
+  const nameInput = document.getElementById('subscription-name') as HTMLInputElement;
+  const amountInput = document.getElementById('subscription-amount') as HTMLInputElement;
+  const categoryInput = document.getElementById('subscription-category') as HTMLSelectElement;
+  const billingDayInput = document.getElementById('subscription-billing-day') as HTMLInputElement;
+  const startDateInput = document.getElementById('subscription-start-date') as HTMLInputElement;
+  const notifyEnabledInput = document.getElementById('subscription-notify-enabled') as HTMLInputElement;
+  const notifyDaysInput = document.getElementById('subscription-notify-days') as HTMLInputElement;
+
+  const name = nameInput?.value.trim();
+  const amount = parseFloat(amountInput?.value || '0');
+  const category = categoryInput?.value as ExpenseGroup;
+  const billingDay = parseInt(billingDayInput?.value || '0', 10);
+  const startDate = startDateInput?.value;
+  const notifyEnabled = Boolean(notifyEnabledInput?.checked);
+  const notifyDaysBefore = parseInt(notifyDaysInput?.value || '1', 10);
+
+  if (!name) {
+    showSnackbar('Ingresa un nombre para la suscripción', 'error');
+    return;
+  }
+  if (Number.isNaN(amount) || amount <= 0) {
+    showSnackbar('Ingresa un monto válido', 'error');
+    return;
+  }
+  if (!category || !(category in expenseGroups)) {
+    showSnackbar('Selecciona una categoría válida', 'error');
+    return;
+  }
+  if (Number.isNaN(billingDay) || billingDay < 1 || billingDay > 28) {
+    showSnackbar('El día de cobro debe estar entre 1 y 28', 'error');
+    return;
+  }
+  if (!startDate) {
+    showSnackbar('Selecciona la fecha de inicio', 'error');
+    return;
+  }
+  if (Number.isNaN(notifyDaysBefore) || notifyDaysBefore < 1 || notifyDaysBefore > 7) {
+    showSnackbar('Los días de aviso deben estar entre 1 y 7', 'error');
+    return;
+  }
+
+  const editingId = (window as any).__editingSubscriptionId__ as string | undefined;
+  const existing = editingId ? getAllSubscriptions().find((item) => item.id === editingId) : null;
+  const nowIso = new Date().toISOString();
+
+  const subscription: Subscription = {
+    id: existing?.id ?? crypto.randomUUID(),
+    name,
+    amount,
+    category,
+    billingDay,
+    startDate,
+    status: existing?.status ?? 'active',
+    notifyEnabled,
+    notifyDaysBefore,
+    createdAt: existing?.createdAt ?? nowIso,
+    updatedAt: nowIso,
+  };
+
+  upsertSubscription(subscription);
+  closeSubscriptionSheet();
+  renderSubscriptionsList();
+  showSnackbar(existing ? 'Suscripción actualizada' : 'Suscripción creada', 'success');
+};
+
+const loadSubscriptionsView = () => {
+  updateSubscriptionNotificationStatus();
+  renderSubscriptionsList();
+};
+
+const setupSyncStatusIndicator = () => {
+  const indicator = document.getElementById('sync-status-indicator');
+  if (!indicator) return;
+
+  let hideTimer: number | null = null;
+
+  const show = (message: string, color: string) => {
+    indicator.textContent = message;
+    indicator.style.color = color;
+    indicator.classList.add('visible');
+  };
+
+  const hide = (delay = 0) => {
+    if (hideTimer) {
+      window.clearTimeout(hideTimer);
+    }
+
+    if (delay <= 0) {
+      indicator.classList.remove('visible');
+      return;
+    }
+
+    hideTimer = window.setTimeout(() => {
+      indicator.classList.remove('visible');
+    }, delay);
+  };
+
+  window.addEventListener('firestoreSyncStatus', ((event: Event) => {
+    const customEvent = event as CustomEvent<{ status: 'syncing' | 'synced' | 'error' | 'offline' }>;
+    const status = customEvent.detail?.status;
+
+    if (status === 'syncing') {
+      show('Sincronizando…', '#94a3b8');
+      return;
+    }
+
+    if (status === 'synced') {
+      show('Sincronizado', '#86efac');
+      hide(1200);
+      return;
+    }
+
+    if (status === 'offline') {
+      show('Sin conexión (modo local)', '#facc15');
+      hide(2200);
+      return;
+    }
+
+    if (status === 'error') {
+      show('Error de sincronización', '#fca5a5');
+      hide(2200);
+    }
+  }) as EventListener);
 };
 
 const loadProfileView = () => {
@@ -1174,6 +1467,7 @@ const initRadialMenu = () => {
   const expenseOption = document.getElementById('radial-option-expense') as HTMLElement;
   const incomeOption = document.getElementById('radial-option-income') as HTMLElement;
   const budgetOption = document.getElementById('radial-option-budget') as HTMLElement;
+  const subscriptionOption = document.getElementById('radial-option-subscription') as HTMLElement;
   const radialOptions = document.querySelector('.radial-menu-options') as HTMLElement;
 
   if (!fab || !backdrop) return;
@@ -1186,6 +1480,7 @@ const initRadialMenu = () => {
     expenseOption?.classList.add('active');
     incomeOption?.classList.add('active');
     budgetOption?.classList.add('active');
+    subscriptionOption?.classList.add('active');
   };
 
   const hideRadialMenu = () => {
@@ -1197,6 +1492,7 @@ const initRadialMenu = () => {
     expenseOption?.classList.remove('active', 'selected');
     incomeOption?.classList.remove('active', 'selected');
     budgetOption?.classList.remove('active', 'selected');
+    subscriptionOption?.classList.remove('active', 'selected');
   };
 
   const getTouchPosition = (e: TouchEvent | MouseEvent): { x: number; y: number } => {
@@ -1209,21 +1505,43 @@ const initRadialMenu = () => {
     return { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
   };
 
-  const getSelectedOptionByAngle = (angle: number): string | null => {
-    if (angle >= 225 && angle <= 315) {
-      return 'budget';
-    } else if (angle > 315 || angle < 45) {
-      return 'income';
-    } else if (angle >= 45 && angle <= 225) {
-      return 'expense';
+  const getSelectedOptionByPointer = (x: number, y: number, deltaX: number, deltaY: number): string | null => {
+    const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const deadZone = 18;
+    if (dragDistance < deadZone) return null;
+
+    const optionMap: Array<{ key: string; el: HTMLElement | null }> = [
+      { key: 'expense', el: expenseOption },
+      { key: 'income', el: incomeOption },
+      { key: 'budget', el: budgetOption },
+      { key: 'subscription', el: subscriptionOption },
+    ];
+
+    let closest: { key: string; distance: number } | null = null;
+
+    for (const option of optionMap) {
+      if (!option.el) continue;
+      const rect = option.el.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const distance = Math.hypot(x - centerX, y - centerY);
+
+      if (!closest || distance < closest.distance) {
+        closest = { key: option.key, distance };
+      }
     }
-    return null;
+
+    const activationRadius = 90;
+    if (!closest || closest.distance > activationRadius) return null;
+
+    return closest.key;
   };
 
   const highlightOption = (option: string | null) => {
     expenseOption?.classList.toggle('selected', option === 'expense');
     incomeOption?.classList.toggle('selected', option === 'income');
     budgetOption?.classList.toggle('selected', option === 'budget');
+    subscriptionOption?.classList.toggle('selected', option === 'subscription');
     currentHoveredOption = option;
   };
 
@@ -1231,6 +1549,7 @@ const initRadialMenu = () => {
     expenseOption?.classList.remove('selected');
     incomeOption?.classList.remove('selected');
     budgetOption?.classList.remove('selected');
+    subscriptionOption?.classList.remove('selected');
   };
 
   const handleStart = (e: TouchEvent | MouseEvent) => {
@@ -1253,9 +1572,7 @@ const initRadialMenu = () => {
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
     if (distance > 10) {
-      const angle = Math.atan2(-deltaY, deltaX) * (180 / Math.PI);
-      const normalizedAngle = angle < 0 ? angle + 360 : angle;
-      const selectedOption = getSelectedOptionByAngle(normalizedAngle);
+      const selectedOption = getSelectedOptionByPointer(pos.x, pos.y, deltaX, deltaY);
       highlightOption(selectedOption);
     } else {
       clearHighlight();
@@ -1277,9 +1594,7 @@ const initRadialMenu = () => {
       const pos = getTouchPosition(e);
       const deltaX = pos.x - dragStartX;
       const deltaY = pos.y - dragStartY;
-      const angle = Math.atan2(-deltaY, deltaX) * (180 / Math.PI);
-      const normalizedAngle = angle < 0 ? angle + 360 : angle;
-      selectedAction = getSelectedOptionByAngle(normalizedAngle);
+      selectedAction = getSelectedOptionByPointer(pos.x, pos.y, deltaX, deltaY);
     }
 
     hideRadialMenu();
@@ -1290,6 +1605,8 @@ const initRadialMenu = () => {
       openIncomeSheet();
     } else if (selectedAction === 'budget') {
       openBudgetConfigModal();
+    } else if (selectedAction === 'subscription') {
+      openSubscriptionSheet();
     }
   };
 
@@ -1462,7 +1779,8 @@ const handleSaveExpense = () => {
     amount,
     category,
     detail,
-    date: new Date(`${date}T00:00:00`).toISOString()
+    date: new Date(`${date}T00:00:00`).toISOString(),
+    source: 'manual' as const,
   };
 
   expenses.unshift(newExpense);
@@ -1499,6 +1817,26 @@ function setupEventListeners() {
     if (e.target === e.currentTarget) closeBudgetConfigModal();
   });
 
+  document.getElementById('btn-open-subscription-sheet')?.addEventListener('click', () => openSubscriptionSheet());
+  document.getElementById('btn-close-subscription-sheet')?.addEventListener('click', closeSubscriptionSheet);
+  document.getElementById('subscription-sheet-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeSubscriptionSheet();
+  });
+  document.getElementById('btn-save-subscription')?.addEventListener('click', handleSaveSubscription);
+
+  document.getElementById('btn-enable-subscription-notifications')?.addEventListener('click', async () => {
+    const permission = await requestSubscriptionNotificationPermission();
+    updateSubscriptionNotificationStatus();
+
+    if (permission === 'granted') {
+      showSnackbar('Notificaciones activadas', 'success');
+    } else if (permission === 'denied') {
+      showSnackbar('Las notificaciones fueron bloqueadas', 'warning');
+    } else if (permission === 'unsupported') {
+      showSnackbar('Este navegador no soporta notificaciones', 'warning');
+    }
+  });
+
   // Budget config inputs - update preview on change
   document.getElementById('budget-needs-percent')?.addEventListener('input', updateBudgetPreview);
   document.getElementById('budget-wants-percent')?.addEventListener('input', updateBudgetPreview);
@@ -1514,8 +1852,10 @@ function setupEventListeners() {
   });
 
   document.getElementById('btn-see-all')?.addEventListener('click', () => showView('stats'));
+  document.getElementById('btn-open-subscriptions-view')?.addEventListener('click', () => showView('subscriptions'));
 
   document.getElementById('btn-back-stats')?.addEventListener('click', () => showView('home'));
+  document.getElementById('btn-back-subscriptions')?.addEventListener('click', () => showView('budgets'));
   document.getElementById('btn-back-budgets')?.addEventListener('click', () => showView('home'));
   document.getElementById('btn-back-profile')?.addEventListener('click', () => showView('home'));
 
@@ -1562,6 +1902,20 @@ window.addEventListener('budgetDeleted', () => {
   }
 });
 
+window.addEventListener('subscriptionDeleted', () => {
+  if (currentView === 'subscriptions') {
+    renderSubscriptionsList();
+  }
+  loadHomeView();
+  if (currentView === 'stats') {
+    updateStatsCards();
+    if (statsCurrentTab === 'expenses') {
+      loadStatsExpenses();
+    }
+  }
+  showSnackbar('Suscripción eliminada', 'success');
+});
+
 const MIGRATION_KEY = 'hasMigratedTo503020';
 
 const runMigration = () => {
@@ -1581,6 +1935,8 @@ const runMigration = () => {
 };
 
 async function initApp() {
+  setupSyncStatusIndicator();
+  await initializeFirestoreSync();
   runMigration();
   
   loadCategorySelect();
@@ -1591,6 +1947,23 @@ async function initApp() {
   initViewSwipe();
   loadHomeView();
   checkBudgetAlertsOnLoad();
+
+  processSubscriptionsForToday()
+    .then(({ generatedCount }) => {
+      if (generatedCount > 0) {
+        loadHomeView();
+        if (currentView === 'stats') {
+          updateStatsCards();
+          if (statsCurrentTab === 'expenses') {
+            loadStatsExpenses();
+          }
+        }
+        showSnackbar(`Se registraron ${generatedCount} suscripción(es) automáticamente`, 'success');
+      }
+    })
+    .catch(() => {
+      // No bloquear inicio de app por proceso en background
+    });
 }
 
 initApp();

@@ -114,6 +114,7 @@ export const saveExpense = (event: SubmitEvent) => {
     detail,
     date: new Date().toISOString(),
     id: crypto.randomUUID(),
+    source: 'manual' as const,
   };
 
   const liItems = Array.from($expenseList.children) as HTMLElement[];

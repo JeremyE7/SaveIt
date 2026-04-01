@@ -1228,6 +1228,17 @@ li span {
     gap: 8px;
 }
 
+.transaction-source-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.2);
+    color: #c7d2fe;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
 .expense-item-category-dot {
     width: 6px;
     height: 6px;
@@ -1414,6 +1425,52 @@ li span {
     font-weight: 600;
 }
 
+.subscription-meta {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.subscription-status {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.03em;
+}
+
+.subscription-status.active {
+    background: rgba(16, 185, 129, 0.18);
+    color: #6ee7b7;
+}
+
+.subscription-status.cancelled {
+    background: rgba(239, 68, 68, 0.18);
+    color: #fca5a5;
+}
+
+.subscription-next-charge {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}
+
+.subscription-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.subscription-actions button {
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
 .radial-menu-container {
     position: relative;
     width: 80px;
@@ -1510,11 +1567,11 @@ li span {
 
 .radial-menu-options {
     position: absolute;
-    bottom: 80px;
+    bottom: 84px;
     left: 50%;
     transform: translateX(-50%);
-    width: 180px;
-    height: 140px;
+    width: 300px;
+    height: 220px;
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
@@ -1550,9 +1607,9 @@ li span {
 .radial-menu-option.expense {
     background: #ef4444;
     color: white;
-    top: 10px;
-    left: 10px;
-    transform: translate(-30%, -30%) scale(1);
+    top: 128px;
+    left: 26px;
+    transform: translate(-50%, -50%) scale(1);
     opacity: 0;
 }
 
@@ -1561,14 +1618,14 @@ li span {
 }
 
 .radial-menu-option.expense.selected {
-    transform: translate(-30%, -30%) scale(1.4);
+    transform: translate(-50%, -50%) scale(1.25);
 }
 
 .radial-menu-option.budget {
     background: var(--color-primary);
     color: #000;
-    top: -50px;
-    left: 50%;
+    top: 60px;
+    left: 92px;
     transform: translateX(-50%) scale(1);
     opacity: 0;
 }
@@ -1578,15 +1635,32 @@ li span {
 }
 
 .radial-menu-option.budget.selected {
-    transform: translateX(-50%) scale(1.4);
+    transform: translateX(-50%) scale(1.25);
+}
+
+.radial-menu-option.subscription {
+    background: #6366f1;
+    color: white;
+    top: 60px;
+    left: 208px;
+    transform: translateX(-50%) scale(1);
+    opacity: 0;
+}
+
+.radial-menu-option.subscription.active {
+    opacity: 1;
+}
+
+.radial-menu-option.subscription.selected {
+    transform: translateX(-50%) scale(1.25);
 }
 
 .radial-menu-option.income {
     background: #22c55e;
     color: white;
-    top: 10px;
-    right: 10px;
-    transform: translate(30%, -30%) scale(1);
+    top: 128px;
+    right: 26px;
+    transform: translate(50%, -50%) scale(1);
     opacity: 0;
 }
 
@@ -1595,12 +1669,12 @@ li span {
 }
 
 .radial-menu-option.income.selected {
-    transform: translate(30%, -30%) scale(1.4);
+    transform: translate(50%, -50%) scale(1.25);
 }
 
 .radial-menu-option-label {
     position: absolute;
-    top: -18px;
+    top: -20px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 10px;
@@ -1608,11 +1682,23 @@ li span {
     white-space: nowrap;
     color: white;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-    opacity: 0;
+    opacity: 0.25;
     transition: opacity 0.2s ease;
 }
 
+.radial-menu-option.budget .radial-menu-option-label {
+    transform: translateX(-62%);
+}
+
+.radial-menu-option.subscription .radial-menu-option-label {
+    transform: translateX(-38%);
+}
+
 .radial-menu-option.active .radial-menu-option-label {
+    opacity: 0.5;
+}
+
+.radial-menu-option.selected .radial-menu-option-label {
     opacity: 1;
 }
 
@@ -2311,7 +2397,7 @@ li span {
 }
 
 .view-hidden {
-    display: block;
+    display: none;
     opacity: 0;
     pointer-events: none;
 }
@@ -2414,6 +2500,37 @@ li span {
     background: rgba(239, 68, 68, 0.2);
     color: #ef4444;
     opacity: 1;
+}
+
+.swipe-indicator.swipe-indicator-toggle {
+    left: 0;
+    right: 0;
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    opacity: 1;
+}
+
+.sync-status-indicator {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    z-index: 60;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sync-status-indicator.visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 /* Profile View Styles */

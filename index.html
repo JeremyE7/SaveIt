@@ -26,6 +26,8 @@
             <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#30c9e8]"></div>
         </div>
 
+        <div id="sync-status-indicator" class="sync-status-indicator"></div>
+
         <div class="app-container">
             
             <!-- HOME VIEW -->
@@ -214,7 +216,9 @@
                         <span class="material-symbols-outlined stats-title-icon">account_balance_wallet</span>
                         Presupuestos
                     </h1>
-                    <div style="width: 40px;"></div>
+                    <button id="btn-open-subscriptions-view" class="icon-btn" title="Gestionar suscripciones">
+                        <span class="material-symbols-outlined">subscriptions</span>
+                    </button>
                 </header>
 
                 <!-- Budgets List -->
@@ -222,6 +226,37 @@
                     <h2 class="section-title">Presupuestos Activos</h2>
                 </div>
                 <div id="budgets-list" class="expenses-list" style="padding: 0 20px;"></div>
+            </div>
+
+            <!-- SUBSCRIPTIONS VIEW -->
+            <div id="subscriptions-view" class="view-container view-hidden">
+                <header class="stats-header">
+                    <button id="btn-back-subscriptions" class="stats-back-btn">
+                        <span class="material-symbols-outlined">arrow_back_ios</span>
+                    </button>
+                    <h1 class="stats-title">
+                        <span class="material-symbols-outlined stats-title-icon">subscriptions</span>
+                        Suscripciones
+                    </h1>
+                    <button id="btn-open-subscription-sheet" class="icon-btn" title="Agregar suscripción">
+                        <span class="material-symbols-outlined">add</span>
+                    </button>
+                </header>
+
+                <div class="stats-filters" style="margin-top: 16px;">
+                    <div class="filter-row" style="align-items: center; justify-content: space-between;">
+                        <div class="filter-group" style="flex: 1;">
+                            <label>Notificaciones</label>
+                            <small id="subscription-notification-status" style="color: var(--color-text-secondary);">Estado: pendiente</small>
+                        </div>
+                        <button id="btn-enable-subscription-notifications" class="section-action" style="margin-top: 18px;">Activar</button>
+                    </div>
+                </div>
+
+                <div class="section-header" style="margin-top: 16px;">
+                    <h2 class="section-title">Suscripciones configuradas</h2>
+                </div>
+                <div id="subscriptions-list" class="expenses-list" style="padding: 0 20px;"></div>
             </div>
 
             <!-- Bottom Sheet Modal (Add Expense) -->
@@ -372,6 +407,55 @@
                 </div>
             </div>
 
+            <!-- Bottom Sheet Modal (Subscription) -->
+            <div id="subscription-sheet-overlay" class="bottom-sheet-overlay">
+                <div class="bottom-sheet">
+                    <div class="bottom-sheet-handle">
+                        <div class="bottom-sheet-handle-bar"></div>
+                    </div>
+                    <div class="bottom-sheet-header">
+                        <button id="btn-close-subscription-sheet" class="bottom-sheet-close">Cancelar</button>
+                        <h2 id="subscription-sheet-title" class="bottom-sheet-title">Agregar Suscripción</h2>
+                        <button id="btn-save-subscription" class="bottom-sheet-close" style="color: #30c9e8;">Guardar</button>
+                    </div>
+                    <div class="bottom-sheet-content">
+                        <div class="form-group">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" id="subscription-name" class="form-input" placeholder="Ej: Netflix" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Monto</label>
+                            <input type="number" id="subscription-amount" class="form-input" placeholder="0.00" step="0.01" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Categoría</label>
+                            <select id="subscription-category" class="form-select"></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Día de cobro</label>
+                            <input type="number" id="subscription-billing-day" class="form-input" min="1" max="28" />
+                            <small style="color: var(--color-text-secondary);">Para mantener consistencia mensual, permitido de 1 a 28.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Fecha de inicio</label>
+                            <input type="date" id="subscription-start-date" class="form-date" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="subscription-notify-enabled" checked />
+                                Notificar antes del cobro
+                            </label>
+                            <input type="number" id="subscription-notify-days" class="form-input" min="1" max="7" value="1" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Snackbar -->
             <div id="snackbar" class="snackbar">
                 <div id="snackbar-icon" class="snackbar-icon success">
@@ -506,6 +590,10 @@
                             <button id="radial-option-budget" class="radial-menu-option budget" data-action="budget">
                                 <span class="material-symbols-outlined">account_balance_wallet</span>
                                 <span class="radial-menu-option-label">Presupuesto</span>
+                            </button>
+                            <button id="radial-option-subscription" class="radial-menu-option subscription" data-action="subscription">
+                                <span class="material-symbols-outlined">subscriptions</span>
+                                <span class="radial-menu-option-label">Suscripción</span>
                             </button>
                             <button id="radial-option-income" class="radial-menu-option income" data-action="income">
                                 <span class="material-symbols-outlined">trending_up</span>
