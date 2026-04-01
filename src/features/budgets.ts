@@ -1,11 +1,12 @@
+import type { ExpenseGroup } from "../types/ExpenseGroups";
+
 export interface Budget {
-  category: string;
+  category: ExpenseGroup;
   amount: number;
-  period: 'monthly' | 'weekly';
 }
 
 export interface BudgetAlert {
-  category: string;
+  category: ExpenseGroup;
   spent: number;
   budget: number;
   percentage: number;
@@ -35,79 +36,26 @@ export const addBudget = (budget: Budget): void => {
   setBudgets(budgets);
 };
 
-export const removeBudget = (category: string): void => {
+export const removeBudget = (category: ExpenseGroup): void => {
   const budgets = getBudgets().filter(b => b.category !== category);
   setBudgets(budgets);
 };
 
-export const confirmDeleteBudget = (category: string) => {
-  const budgets = getBudgets();
-  const budget = budgets.find(b => b.category === category);
-  if (!budget) return;
-
-  const overlay = document.createElement('div');
-  overlay.className = 'confirm-popup-overlay';
-  overlay.innerHTML = `
-    <div class="confirm-popup">
-      <div class="confirm-popup-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      </div>
-      <h3 class="confirm-popup-title">Eliminar Presupuesto</h3>
-      <p class="confirm-popup-message">¿Estás seguro de eliminar el presupuesto de <strong>${budget.amount}$</strong>?</p>
-      <div class="confirm-popup-buttons">
-        <button class="confirm-popup-btn cancel" data-cancel>Cancelar</button>
-        <button class="confirm-popup-btn danger" data-confirm>Eliminar</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  const handleConfirm = () => {
-    cleanup();
-    removeBudget(category);
-    const event = new CustomEvent('budgetDeleted');
-    window.dispatchEvent(event);
-  };
-
-  const handleCancel = () => {
-    cleanup();
-  };
-
-  const cleanup = () => {
-    overlay.remove();
-  };
-
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      handleCancel();
-    }
-  });
-
-  overlay.querySelector('[data-cancel]')?.addEventListener('click', handleCancel);
-  overlay.querySelector('[data-confirm]')?.addEventListener('click', handleConfirm);
-};
+export const confirmDeleteBudget = (_category: string) => {};
 
 export const checkBudgetAlerts = (expenses: Array<{ category: string; amount: number; date: string }>): BudgetAlert[] => {
   const budgets = getBudgets();
   const now = new Date();
   const alerts: BudgetAlert[] = [];
 
-  budgets.forEach(budget => {
-    let periodStart: Date;
-    
-    if (budget.period === 'weekly') {
-      periodStart = new Date(now);
-      periodStart.setDate(now.getDate() - 7);
-    } else {
-      periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    }
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  budgets.forEach(budget => {
     const spent = expenses
-      .filter(e => e.category === budget.category && new Date(e.date) >= periodStart)
+      .filter(e => e.category === budget.category && new Date(e.date) >= monthStart)
       .reduce((sum, e) => sum + e.amount, 0);
 
-    const percentage = (spent / budget.amount) * 100;
+    const percentage = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
     
     if (percentage >= 80) {
       alerts.push({
@@ -120,4 +68,18 @@ export const checkBudgetAlerts = (expenses: Array<{ category: string; amount: nu
   });
 
   return alerts;
+};
+
+export const getBudgetForGroup = (group: ExpenseGroup): Budget | undefined => {
+  const budgets = getBudgets();
+  return budgets.find(b => b.category === group);
+};
+
+export const getSpentByGroup = (group: ExpenseGroup, expenses: Array<{ category: string; amount: number; date: string }>): number => {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  return expenses
+    .filter(e => e.category === group && new Date(e.date) >= monthStart)
+    .reduce((sum, e) => sum + e.amount, 0);
 };

@@ -2697,3 +2697,122 @@ li span {
     font-size: 14px;
     color: var(--color-text-muted);
 }
+
+/* Budget Config Styles */
+.budget-config-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.budget-config-item {
+    background: var(--color-bg-card);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.budget-config-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.budget-config-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.budget-config-label {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--color-text-primary);
+}
+
+.budget-config-input-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.budget-percent-input {
+    width: 60px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border-light);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.budget-percent-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.budget-percent-symbol {
+    font-size: 16px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.budget-config-preview {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    text-align: right;
+}
+
+.budget-total-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--color-bg-elevated);
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.budget-total-section span:last-child {
+    color: var(--color-success);
+}
+
+.budget-config-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    background: var(--color-bg-card);
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.budget-config-info .material-symbols-outlined {
+    font-size: 20px;
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.budget-config-info p {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    margin: 0;
+}
+
+.budget-item-desc {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-top: 2px;
+}
+
+.budget-item-progress-info {
+    margin-bottom: 8px;
+}

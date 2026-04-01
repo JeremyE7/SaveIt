@@ -8,7 +8,7 @@ import { getDataFromLocalStorage } from "../utils/LocalStorage";
 import { openModal } from "../features/modal";
 import type { Expense } from "../types/Expense";
 import type { Income } from "../types/Income";
-import { expenseCategories } from "../types/ExpenseCategories";
+import { expenseGroups, type ExpenseGroup } from "../types/ExpenseGroups";
 import { incomeCategories } from "../types/IncomeCategories";
 import { initSwipeExpense, initSwipeIncome, openEditModal, openEditIncomeModal } from "../utils/swipe";
 import { confirmDeleteIncome } from "../features/incomes";
@@ -18,26 +18,18 @@ export const $ = <T extends Element>(query: string) =>
   document.querySelector(query) as T;
 
 const generateCategoryOptions = () => {
-  const grouped = Object.entries(expenseCategories).reduce(
-    (acc, [key, cat]) => {
-      if (!acc[cat.group]) acc[cat.group] = [];
-      acc[cat.group].push({ key, ...cat }); // Incluye la key
-      return acc;
-    },
-    {} as Record<
-      string,
-      Array<{ key: string } & (typeof expenseCategories)[keyof typeof expenseCategories]>
-    >,
-  );
+  const customCategories = getCustomCategories();
+  const customExpenseCategories = customCategories.filter(c => c.type === 'expense');
 
-  return Object.entries(grouped)
-    .map(([group, items]) => {
-      const options = items
-        .map((c) => `<option value="${c.key}">${c.label}</option>`) // Usa c.key
-        .join("");
-      return `<optgroup label="${group}">${options}</optgroup>`;
-    })
-    .join("");
+  const defaultOptions = Object.entries(expenseGroups)
+    .map(([key, group]) => `<option value="${key}">${group.label}</option>`)
+    .join('');
+
+  const customOptions = customExpenseCategories
+    .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
+    .join('');
+
+  return defaultOptions + customOptions;
 };
 
 export const loadCategoryOptions = () => {
@@ -46,6 +38,16 @@ export const loadCategoryOptions = () => {
 };
 
 export type TransactionType = 'expense' | 'income';
+
+const getCategoryIcon = (category: string): string => {
+  if (category.startsWith('custom_')) {
+    const categoryId = category.replace('custom_', '');
+    const customCategories = getCustomCategories();
+    const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
+    return customCat?.icon || 'category';
+  }
+  return expenseGroups[category as ExpenseGroup]?.icon || 'receipt';
+};
 
 export const createExpenseElement = (expense: Expense, type: TransactionType = 'expense') => {
   const listItem = document.createElement("div");
@@ -68,7 +70,7 @@ export const createExpenseElement = (expense: Expense, type: TransactionType = '
     } else {
       const incomeCatKey = expense.category as keyof typeof incomeCategories;
       cat = incomeCategories[incomeCatKey];
-      catIcon = getCategoryIcon(expense.category);
+      catIcon = getIncomeCategoryIcon(expense.category);
     }
   } else {
     const customCategories = getCustomCategories();
@@ -78,8 +80,8 @@ export const createExpenseElement = (expense: Expense, type: TransactionType = '
       cat = { label: customCat.name, color: customCat.color };
       catIcon = customCat.icon;
     } else {
-      const expenseCatKey = expense.category as keyof typeof expenseCategories;
-      cat = expenseCategories[expenseCatKey];
+      const expenseCatKey = expense.category as ExpenseGroup;
+      cat = expenseGroups[expenseCatKey];
       catIcon = getCategoryIcon(expense.category);
     }
   }
@@ -140,31 +142,8 @@ export const createExpenseElement = (expense: Expense, type: TransactionType = '
   return listItem;
 };
 
-const getCategoryIcon = (category: string): string => {
+const getIncomeCategoryIcon = (category: string): string => {
   const iconMap: Record<string, string> = {
-    food_home: 'local_grocery_store',
-    food_restaurant: 'restaurant',
-    transport_public: 'directions_bus',
-    transport_fuel: 'local_gas_station',
-    transport_taxi: 'local_taxi',
-    housing_rent: 'home',
-    housing_utilities: 'bolt',
-    housing_internet: 'wifi',
-    shopping_clothes: 'checkroom',
-    shopping_electronics: 'devices',
-    health_medicine: 'medication',
-    health_doctor: 'medical_services',
-    entertainment_streaming: 'smart_display',
-    entertainment_games: 'sports_esports',
-    education_courses: 'school',
-    work_tools: 'build',
-    finance_fees: 'account_balance',
-    personal_care: 'spa',
-    cleaning: 'cleaning_services',
-    gifts: 'card_giftcard',
-    pets: 'pets',
-    travel: 'flight',
-    other: 'more_horiz',
     salary: 'payments',
     freelance: 'laptop_mac',
     bonus: 'stars',
@@ -172,7 +151,7 @@ const getCategoryIcon = (category: string): string => {
     gift: 'card_giftcard',
     other_income: 'attach_money',
   };
-  return iconMap[category] || 'receipt';
+  return iconMap[category] || 'attach_money';
 };
 
 export const loadExpenses = () => {

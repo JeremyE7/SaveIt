@@ -64,7 +64,7 @@ describe('Expenses', () => {
 
     it('should return expenses from localStorage', () => {
       const expenses: Expense[] = [
-        { id: '1', amount: 100, category: 'food_home', detail: 'Test', date: '2024-01-01' },
+        { id: '1', amount: 100, category: 'needs', detail: 'Test', date: '2024-01-01' },
       ];
       (getDataFromLocalStorage as ReturnType<typeof vi.fn>).mockReturnValue(expenses);
       const result = getAllExpenses();
@@ -75,7 +75,7 @@ describe('Expenses', () => {
   describe('getFilteredExpenses', () => {
     it('should return filtered expenses', () => {
       const expenses: Expense[] = [
-        { id: '1', amount: 100, category: 'food_home', detail: 'Test', date: '2024-01-01' },
+        { id: '1', amount: 100, category: 'needs', detail: 'Test', date: '2024-01-01' },
       ];
       (getDataFromLocalStorage as ReturnType<typeof vi.fn>).mockReturnValue(expenses);
       const result = getFilteredExpenses();
@@ -86,7 +86,7 @@ describe('Expenses', () => {
   describe('setFilteredExpenses', () => {
     it('should save filtered expenses to localStorage', () => {
       const expenses: Expense[] = [
-        { id: '1', amount: 100, category: 'food_home', detail: 'Test', date: '2024-01-01' },
+        { id: '1', amount: 100, category: 'needs', detail: 'Test', date: '2024-01-01' },
       ];
       setFilteredExpenses(expenses);
       expect(setDataToLocalStorage).toHaveBeenCalledWith('filteredExpenses', expenses);
@@ -96,12 +96,12 @@ describe('Expenses', () => {
   describe('addExpense', () => {
     it('should add expense to beginning of array', () => {
       const existingExpenses: Expense[] = [
-        { id: '1', amount: 50, category: 'food_home', detail: 'Old', date: '2024-01-01' },
+        { id: '1', amount: 50, category: 'needs', detail: 'Old', date: '2024-01-01' },
       ];
       const newExpense: Expense = {
         id: '2',
         amount: 100,
-        category: 'transport_public',
+        category: 'wants',
         detail: 'New',
         date: '2024-01-02',
       };
@@ -116,16 +116,16 @@ describe('Expenses', () => {
   describe('filterExpenses', () => {
     it('should filter expenses by category', () => {
       const expenses: Expense[] = [
-        { id: '1', amount: 100, category: 'food_home', detail: 'Food 1', date: '2024-01-01' },
-        { id: '2', amount: 50, category: 'transport_public', detail: 'Transport 1', date: '2024-01-02' },
+        { id: '1', amount: 100, category: 'needs', detail: 'Food 1', date: '2024-01-01' },
+        { id: '2', amount: 50, category: 'wants', detail: 'Transport 1', date: '2024-01-02' },
       ];
 
       (getDataFromLocalStorage as ReturnType<typeof vi.fn>).mockReturnValue(expenses);
-      filterExpenses('food_home');
+      filterExpenses('needs');
 
       expect(setDataToLocalStorage).toHaveBeenCalledWith(
         'filteredExpenses',
-        expect.arrayContaining([expect.objectContaining({ category: 'food_home' })]),
+        expect.arrayContaining([expect.objectContaining({ category: 'needs' })]),
       );
     });
   });
@@ -135,7 +135,7 @@ describe('Expenses', () => {
       const expense: Expense = {
         id: '1',
         amount: 100,
-        category: 'food_home',
+        category: 'needs',
         detail: 'Test',
         date: '2024-01-01',
       };

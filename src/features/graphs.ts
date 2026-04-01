@@ -1,5 +1,5 @@
 import { Chart, PieController, ArcElement, Tooltip, Legend } from "chart.js";
-import { expenseCategories, type ExpenseCategory } from "../types/ExpenseCategories";
+import { expenseGroups, type ExpenseGroup } from "../types/ExpenseGroups";
 import { filterExpenses } from "./expenses";
 import { $expenseList, addViewTransitionNameToVariousElements, removeViewTransitionNameFromVariousElements, showButton } from "../dom/htmlElements";
 import { withTransition } from "../utils/viewTransitions";
@@ -17,7 +17,7 @@ const getCategoryLabel = (category: string): string => {
     const customCat = customCategories.find((c: { id: string; type: string }) => c.id === categoryId && c.type === 'expense');
     if (customCat) return customCat.name;
   }
-  const cat = expenseCategories[category as ExpenseCategory];
+  const cat = expenseGroups[category as ExpenseGroup];
   return cat?.label || category;
 };
 
@@ -58,7 +58,7 @@ export const generatePieChart = (
         const liItems = Array.from($expenseList.children) as HTMLElement[];
         addViewTransitionNameToVariousElements(liItems, "list-item");
         withTransition(() => {
-          filterExpenses(label as unknown as ExpenseCategory);
+          filterExpenses(label as string);
         });
         removeViewTransitionNameFromVariousElements(liItems);
         showSuccess(`Filtrado por: ${getCategoryLabel(label as string)}`);

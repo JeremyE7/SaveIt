@@ -3,7 +3,7 @@ import type { Income } from "../types/Income";
 import { getAllExpenses } from "../features/expenses";
 import { getAllIncomes } from "../features/incomes";
 import { getBudgets, type Budget } from "../features/budgets";
-import { expenseCategories, type ExpenseCategory } from "../types/ExpenseCategories";
+import { expenseGroups, type ExpenseGroup } from "../types/ExpenseGroups";
 
 const getCustomCategories = (): Array<{id: string; name: string; icon: string; color: string; type: 'expense' | 'income'}> => {
   return JSON.parse(localStorage.getItem('customCategories') || '[]');
@@ -16,7 +16,7 @@ const getExpenseCategoryLabel = (category: string): string => {
     const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
     if (customCat) return customCat.name;
   }
-  return expenseCategories[category as ExpenseCategory]?.label || category;
+  return expenseGroups[category as ExpenseGroup]?.label || category;
 };
 
 const getExpenseCategoryColor = (category: string): string => {
@@ -26,7 +26,7 @@ const getExpenseCategoryColor = (category: string): string => {
     const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
     if (customCat) return customCat.color;
   }
-  return expenseCategories[category as ExpenseCategory]?.color || '#666';
+  return expenseGroups[category as ExpenseGroup]?.color || '#666';
 };
 
 export const formatDateTime = (isoString: string): string => {
@@ -92,7 +92,6 @@ export const getBudgetLeft = (): number => {
   const expenses = getCurrentMonthExpenses();
   
   const totalBudget = budgets
-    .filter((b: Budget) => b.period === "monthly")
     .reduce((sum: number, b: Budget) => sum + b.amount, 0);
   
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -103,7 +102,6 @@ export const getBudgetLeft = (): number => {
 export const getTotalBudget = (): number => {
   const budgets = getBudgets();
   return budgets
-    .filter((b: Budget) => b.period === "monthly")
     .reduce((sum, b) => sum + b.amount, 0);
 };
 

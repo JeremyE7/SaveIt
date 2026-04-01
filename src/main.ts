@@ -3,9 +3,9 @@ import { registerSW } from "virtual:pwa-register";
 import { loadExpenses } from "./dom/htmlElements";
 import { getAllExpenses, confirmDeleteExpense, setExpenseToEdit } from "./features/expenses";
 import { getAllIncomes } from "./features/incomes";
-import { checkBudgetAlertsOnLoad, renderBudgetsList } from "./features/budgetModal";
+import { checkBudgetAlertsOnLoad, renderBudgetsList, openBudgetConfigModal, closeBudgetConfigModal, handleBudgetConfigSave, updateBudgetPreview } from "./features/budgetModal";
 import { getCurrentMonthTotal, getCurrentMonthExpenses, getCategoryDistribution, getCurrentMonthIncomeTotal, getExpensesByMonth, getIncomesByMonth, getMonthTotal, getIncomeMonthTotal, getAllExpensesTotal, getAllIncomesTotal } from "./utils/general";
-import { expenseCategories, type ExpenseCategory } from "./types/ExpenseCategories";
+import { expenseGroups, type ExpenseGroup } from "./types/ExpenseGroups";
 import { incomeCategories, type IncomeCategory } from "./types/IncomeCategories";
 import { generatePieChart } from "./features/graphs";
 import { initSwipeExpense, initSwipeIncome, initSwipeCategory, openEditModal, openEditIncomeModal } from "./utils/swipe";
@@ -201,7 +201,7 @@ const loadHomeView = () => {
       const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
       if (customCat) return customCat.color;
     }
-    return expenseCategories[category as ExpenseCategory]?.color || '#666';
+    return expenseGroups[category as ExpenseGroup]?.color || '#666';
   };
 
   const getExpenseLabel = (category: string): string => {
@@ -211,7 +211,7 @@ const loadHomeView = () => {
       const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
       if (customCat) return customCat.name;
     }
-    return expenseCategories[category as ExpenseCategory]?.label || category;
+    return expenseGroups[category as ExpenseGroup]?.label || category;
   };
 
   const categoryMap = new Map<string, string>();
@@ -327,8 +327,8 @@ const populateCategoryFilter = (type: 'expenses' | 'incomes' = 'expenses') => {
   const customCategories = getCustomCategories();
 
   if (type === 'expenses') {
-    const defaultOptions = Object.entries(expenseCategories)
-      .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
+    const defaultOptions = Object.entries(expenseGroups)
+      .map(([key, group]) => `<option value="${key}">${group.label}</option>`)
       .join('');
     const customOptions = customCategories.filter(c => c.type === 'expense')
       .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
@@ -430,8 +430,8 @@ const loadStatsExpenses = () => {
         cat = { label: customCat.name, color: customCat.color };
         catIcon = customCat.icon;
       } else {
-        const expenseCatKey = expense.category as ExpenseCategory;
-        cat = expenseCategories[expenseCatKey];
+        const expenseCatKey = expense.category as ExpenseGroup;
+        cat = expenseGroups[expenseCatKey];
         catIcon = getCategoryIcon(expense.category);
       }
 
@@ -1064,24 +1064,6 @@ const closeBottomSheet = () => {
   clearExpenseForm();
 };
 
-const openBudgetSheet = () => {
-  const overlay = document.getElementById('budget-sheet-overlay');
-  const amountInput = document.getElementById('budget-amount') as HTMLInputElement;
-  const categorySelect = document.getElementById('budget-category') as HTMLSelectElement;
-  
-  if (amountInput) amountInput.value = '';
-  if (categorySelect) categorySelect.value = '';
-  if (overlay) overlay.classList.add('active');
-};
-
-const closeBudgetSheet = () => {
-  const overlay = document.getElementById('budget-sheet-overlay');
-  const amountInput = document.getElementById('budget-amount') as HTMLInputElement;
-  
-  if (overlay) overlay.classList.remove('active');
-  if (amountInput) amountInput.value = '';
-};
-
 const openIncomeSheet = () => {
   const overlay = document.getElementById('income-sheet-overlay');
   const amountInput = document.getElementById('income-amount') as HTMLInputElement;
@@ -1307,7 +1289,7 @@ const initRadialMenu = () => {
     } else if (selectedAction === 'income') {
       openIncomeSheet();
     } else if (selectedAction === 'budget') {
-      openBudgetSheet();
+      openBudgetConfigModal();
     }
   };
 
@@ -1346,8 +1328,8 @@ const loadCategorySelect = () => {
   const customExpenseCategories = customCategories.filter(c => c.type === 'expense');
 
   if (select) {
-    const defaultOptions = Object.entries(expenseCategories)
-      .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
+    const defaultOptions = Object.entries(expenseGroups)
+      .map(([key, group]) => `<option value="${key}">${group.label}</option>`)
       .join('');
     const customOptions = customExpenseCategories
       .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
@@ -1355,14 +1337,9 @@ const loadCategorySelect = () => {
     select.innerHTML = defaultOptions + customOptions;
   }
 
+  // Budget select is no longer used for manual budget entry
   if (budgetSelect) {
-    const defaultOptions = Object.entries(expenseCategories)
-      .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
-      .join('');
-    const customOptions = customExpenseCategories
-      .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
-      .join('');
-    budgetSelect.innerHTML = defaultOptions + customOptions;
+    budgetSelect.innerHTML = '';
   }
 
   loadQuickCategories();
@@ -1388,14 +1365,14 @@ const loadQuickCategories = () => {
   const container = document.getElementById('quick-categories');
   if (!container) return;
 
-  const topCategories = ['food_home', 'transport_public', 'shopping_general', 'housing_utilities'];
+  const topCategories: ExpenseGroup[] = ['needs', 'wants', 'savings'];
 
   container.innerHTML = topCategories.map(cat => {
-    const c = expenseCategories[cat as ExpenseCategory];
+    const c = expenseGroups[cat];
     return `
       <div class="quick-category" data-category="${cat}" style="border-color: ${c?.color}30;">
-        <span class="material-symbols-outlined" style="font-size: 18px;">${getCategoryIcon(cat)}</span>
-        <span>${c?.label.split(' ')[0] || cat}</span>
+        <span class="material-symbols-outlined" style="font-size: 18px;">${c?.icon}</span>
+        <span>${c?.label}</span>
       </div>
     `;
   }).join('');
@@ -1444,7 +1421,7 @@ const handleSaveExpense = () => {
 
   const amount = parseFloat(amountInput?.value || '0');
   const detail = detailInput?.value?.trim() || '';
-  const category = categorySelect?.value as ExpenseCategory;
+  const category = categorySelect?.value as ExpenseGroup;
   const date = dateInput?.value || new Date().toISOString().split('T')[0];
 
   if (!amount || amount <= 0) {
@@ -1497,42 +1474,6 @@ const handleSaveExpense = () => {
   showSnackbar('Gasto guardado', 'success');
 };
 
-const handleSaveBudget = () => {
-  const categorySelect = document.getElementById('budget-category') as HTMLSelectElement;
-  const amountInput = document.getElementById('budget-amount') as HTMLInputElement;
-
-  const category = categorySelect?.value;
-  const amount = parseFloat(amountInput?.value || '0');
-
-  if (!category) {
-    showSnackbar('Selecciona una categoría', 'error');
-    return;
-  }
-
-  if (!amount || amount <= 0) {
-    showSnackbar('Ingresa un monto válido', 'error');
-    return;
-  }
-
-  const budgets = JSON.parse(localStorage.getItem('budgets') || '[]');
-  const existingIndex = budgets.findIndex((b: { category: string }) => b.category === category);
-
-  const newBudget = { category, amount, period: 'monthly' as const };
-
-  if (existingIndex >= 0) {
-    budgets[existingIndex] = newBudget;
-  } else {
-    budgets.push(newBudget);
-  }
-
-  localStorage.setItem('budgets', JSON.stringify(budgets));
-
-  closeBudgetSheet();
-  renderBudgetsList();
-  loadHomeView();
-  showSnackbar('Presupuesto guardado', 'success');
-};
-
 function setupEventListeners() {
   document.querySelectorAll('.bottom-nav-item[data-view]').forEach(item => {
     item.addEventListener('click', () => {
@@ -1543,7 +1484,7 @@ function setupEventListeners() {
 
   document.getElementById('fab-add')?.addEventListener('click', () => {
     if (currentView === 'budgets') {
-      openBudgetSheet();
+      openBudgetConfigModal();
     } else {
       openBottomSheet();
     }
@@ -1553,13 +1494,18 @@ function setupEventListeners() {
     if (e.target === e.currentTarget) closeBottomSheet();
   });
   
-  document.getElementById('btn-close-budget-sheet')?.addEventListener('click', closeBudgetSheet);
+  document.getElementById('btn-close-budget-sheet')?.addEventListener('click', closeBudgetConfigModal);
   document.getElementById('budget-sheet-overlay')?.addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeBudgetSheet();
+    if (e.target === e.currentTarget) closeBudgetConfigModal();
   });
 
+  // Budget config inputs - update preview on change
+  document.getElementById('budget-needs-percent')?.addEventListener('input', updateBudgetPreview);
+  document.getElementById('budget-wants-percent')?.addEventListener('input', updateBudgetPreview);
+  document.getElementById('budget-savings-percent')?.addEventListener('input', updateBudgetPreview);
+
   document.getElementById('btn-save-expense')?.addEventListener('click', handleSaveExpense);
-  document.getElementById('btn-save-budget')?.addEventListener('click', handleSaveBudget);
+  document.getElementById('btn-save-budget-config')?.addEventListener('click', handleBudgetConfigSave);
   document.getElementById('btn-save-income')?.addEventListener('click', handleSaveIncome);
 
   document.getElementById('btn-close-income-sheet')?.addEventListener('click', closeIncomeSheet);
@@ -1616,7 +1562,27 @@ window.addEventListener('budgetDeleted', () => {
   }
 });
 
+const MIGRATION_KEY = 'hasMigratedTo503020';
+
+const runMigration = () => {
+  const hasMigrated = localStorage.getItem(MIGRATION_KEY);
+  
+  if (!hasMigrated) {
+    localStorage.removeItem('expenses');
+    localStorage.removeItem('filteredExpenses');
+    localStorage.removeItem('budgets');
+    
+    const customCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
+    const filteredCategories = customCategories.filter((c: { type: string }) => c.type !== 'expense');
+    localStorage.setItem('customCategories', JSON.stringify(filteredCategories));
+    
+    localStorage.setItem(MIGRATION_KEY, 'true');
+  }
+};
+
 async function initApp() {
+  runMigration();
+  
   loadCategorySelect();
   loadIncomeCategorySelect();
   clearExpenseForm();

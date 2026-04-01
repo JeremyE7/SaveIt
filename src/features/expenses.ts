@@ -1,4 +1,5 @@
 import type { Expense } from "../types/Expense";
+import type { ExpenseGroup } from "../types/ExpenseGroups";
 import {
   $expenseList,
   $formExpense,
@@ -13,7 +14,7 @@ import {
   getDataFromLocalStorage,
   setDataToLocalStorage,
 } from "../utils/LocalStorage";
-import { expenseCategories, type ExpenseCategory } from "../types/ExpenseCategories";
+import { expenseGroups } from "../types/ExpenseGroups";
 import { closeModal } from "./modal";
 import { generatePieChart } from "./graphs";
 import { withTransition } from "../utils/viewTransitions";
@@ -102,14 +103,14 @@ export const saveExpense = (event: SubmitEvent) => {
   }
 
   if (expenseToEdit) {
-    editExpense({ ...expenseToEdit, amount, detail, category: formData.get("category") as ExpenseCategory });
+    editExpense({ ...expenseToEdit, amount, detail, category: formData.get("category") as ExpenseGroup });
     showSuccess("Gasto actualizado");
     return;
   }
 
   const newExpense = {
     amount,
-    category: formData.get("category") as ExpenseCategory,
+    category: formData.get("category") as ExpenseGroup,
     detail,
     date: new Date().toISOString(),
     id: crypto.randomUUID(),
@@ -126,7 +127,7 @@ export const saveExpense = (event: SubmitEvent) => {
   showSuccess("Gasto guardado");
 };
 
-export const filterExpenses = (category: ExpenseCategory) => {
+export const filterExpenses = (category: string) => {
   const expenses = getAllExpenses();
   
   const filteredExpenses = expenses.filter((expense) => {
@@ -270,7 +271,6 @@ export const deleteExpense = (id: string) => {
 
 export const drawExpenses = () => {
   const expenses = getAllExpenses();
-  console.log(expenses);
   const labels: string[] = [];
   const data: number[] = [];
   const colors: string[] = [];
@@ -282,7 +282,7 @@ export const drawExpenses = () => {
       const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
       if (customCat) return customCat.color;
     }
-    return expenseCategories[category as ExpenseCategory]?.color || '#666';
+    return expenseGroups[category as ExpenseGroup]?.color || '#666';
   };
 
   const getExpenseLabel = (category: string): string => {
@@ -292,7 +292,7 @@ export const drawExpenses = () => {
       const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
       if (customCat) return customCat.name;
     }
-    return expenseCategories[category as ExpenseCategory]?.label || category;
+    return expenseGroups[category as ExpenseGroup]?.label || category;
   };
 
   const categoryMap = new Map<string, string>();
@@ -312,6 +312,5 @@ export const drawExpenses = () => {
     }
   });
 
-  console.log(labels, data, colors);
   generatePieChart(labels, data, colors);
 };

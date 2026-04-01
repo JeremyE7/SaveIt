@@ -21,7 +21,7 @@ describe('Budgets', () => {
 
     it('should return stored budgets', () => {
       const budgets: Budget[] = [
-        { category: 'food', amount: 500, period: 'monthly' },
+        { category: 'needs', amount: 500 },
       ];
       localStorage.setItem('budgets', JSON.stringify(budgets));
 
@@ -33,7 +33,7 @@ describe('Budgets', () => {
   describe('setBudgets', () => {
     it('should store budgets in localStorage', () => {
       const budgets: Budget[] = [
-        { category: 'food', amount: 500, period: 'monthly' },
+        { category: 'needs', amount: 500 },
       ];
       setBudgets(budgets);
 
@@ -44,7 +44,7 @@ describe('Budgets', () => {
 
   describe('addBudget', () => {
     it('should add new budget', () => {
-      const budget: Budget = { category: 'food', amount: 500, period: 'monthly' };
+      const budget: Budget = { category: 'needs', amount: 500 };
       addBudget(budget);
 
       const result = getBudgets();
@@ -52,8 +52,8 @@ describe('Budgets', () => {
     });
 
     it('should update existing budget for same category', () => {
-      const budget1: Budget = { category: 'food', amount: 500, period: 'monthly' };
-      const budget2: Budget = { category: 'food', amount: 1000, period: 'weekly' };
+      const budget1: Budget = { category: 'needs', amount: 500 };
+      const budget2: Budget = { category: 'needs', amount: 1000 };
 
       addBudget(budget1);
       addBudget(budget2);
@@ -67,34 +67,34 @@ describe('Budgets', () => {
   describe('removeBudget', () => {
     it('should remove budget by category', () => {
       const budgets: Budget[] = [
-        { category: 'food', amount: 500, period: 'monthly' },
-        { category: 'transport', amount: 200, period: 'monthly' },
+        { category: 'needs', amount: 500 },
+        { category: 'wants', amount: 200 },
       ];
       setBudgets(budgets);
 
-      removeBudget('food');
+      removeBudget('needs');
 
       const result = getBudgets();
       expect(result.length).toBe(1);
-      expect(result[0].category).toBe('transport');
+      expect(result[0].category).toBe('wants');
     });
   });
 
   describe('checkBudgetAlerts', () => {
     it('should return empty array when no budgets exist', () => {
-      const expenses = [{ category: 'food', amount: 100, date: new Date().toISOString() }];
+      const expenses = [{ category: 'needs', amount: 100, date: new Date().toISOString() }];
       const alerts = checkBudgetAlerts(expenses);
       expect(alerts).toEqual([]);
     });
 
     it('should not trigger alert when under 80% threshold', () => {
       const budgets: Budget[] = [
-        { category: 'food', amount: 1000, period: 'monthly' },
+        { category: 'needs', amount: 1000 },
       ];
       setBudgets(budgets);
 
       const expenses = [
-        { category: 'food', amount: 100, date: new Date().toISOString() },
+        { category: 'needs', amount: 100, date: new Date().toISOString() },
       ];
       const alerts = checkBudgetAlerts(expenses);
 
@@ -103,30 +103,30 @@ describe('Budgets', () => {
 
     it('should trigger alert when over 80% threshold', () => {
       const budgets: Budget[] = [
-        { category: 'food', amount: 100, period: 'monthly' },
+        { category: 'needs', amount: 100 },
       ];
       setBudgets(budgets);
 
       const expenses = [
-        { category: 'food', amount: 90, date: new Date().toISOString() },
+        { category: 'needs', amount: 90, date: new Date().toISOString() },
       ];
       const alerts = checkBudgetAlerts(expenses);
 
       expect(alerts.length).toBe(1);
-      expect(alerts[0].category).toBe('food');
+      expect(alerts[0].category).toBe('needs');
       expect(alerts[0].percentage).toBe(90);
     });
 
     it('should only check expenses within the period', () => {
       const budgets: Budget[] = [
-        { category: 'food', amount: 100, period: 'weekly' },
+        { category: 'needs', amount: 100 },
       ];
       setBudgets(budgets);
 
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 30);
       const expenses = [
-        { category: 'food', amount: 100, date: oldDate.toISOString() },
+        { category: 'needs', amount: 100, date: oldDate.toISOString() },
       ];
       const alerts = checkBudgetAlerts(expenses);
 
