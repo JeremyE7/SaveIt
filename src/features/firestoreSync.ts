@@ -22,6 +22,7 @@ let isPatched = false;
 let isHydrating = false;
 let syncDocRef: ReturnType<typeof doc> | null = null;
 let syncSettledTimer: number | null = null;
+let currentSyncUid: string | null = null;
 
 type FirestoreSyncStatus = 'syncing' | 'synced' | 'error' | 'offline';
 
@@ -94,6 +95,17 @@ const hydrateLocalStorageFromCloud = (data: Record<string, unknown>) => {
   }
 };
 
+export const clearTrackedLocalData = () => {
+  isHydrating = true;
+  try {
+    TRACKED_KEYS.forEach((key) => {
+      localStorage.removeItem(key);
+    });
+  } finally {
+    isHydrating = false;
+  }
+};
+
 const patchLocalStorageForSync = () => {
   if (isPatched || typeof Storage === 'undefined') return;
   isPatched = true;
@@ -124,14 +136,33 @@ const patchLocalStorageForSync = () => {
   };
 };
 
-export const initializeFirestoreSync = async (): Promise<void> => {
-  if (!isFirebaseEnabled()) return;
+export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
+  if (!uid) {
+    currentSyncUid = null;
+    syncDocRef = null;
+    emitSyncStatus('offline');
+    return;
+  }
+
+  if (!isFirebaseEnabled()) {
+    emitSyncStatus('offline');
+    return;
+  }
 
   const db = getFirebaseDb();
-  if (!db) return;
+  if (!db) {
+    emitSyncStatus('offline');
+    return;
+  }
 
-  const docId = import.meta.env.VITE_FIREBASE_DOC_ID || 'default';
-  syncDocRef = doc(db, 'saveit', docId);
+  const previousUid = currentSyncUid;
+  currentSyncUid = uid;
+
+  if (previousUid && previousUid !== uid) {
+    clearTrackedLocalData();
+  }
+
+  syncDocRef = doc(db, 'users', uid, 'appData', 'main');
 
   patchLocalStorageForSync();
 

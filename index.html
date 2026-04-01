@@ -15,7 +15,7 @@
         <link rel="apple-touch-icon" href="/pwa-192x192.png" />
         <link rel="icon" type="image/svg+xml" href="/vite.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         <link href="src/style.css" rel="stylesheet" />
         <title>saveit</title>
@@ -43,50 +43,49 @@
                             <h1 id="dashboard-username">SaveIt</h1>
                         </div>
                     </div>
-                    <button class="dashboard-notifications">
-                        <span class="material-symbols-outlined">notifications</span>
-                        <span class="notification-dot"></span>
-                    </button>
+                    <div class="dashboard-header-right">
+                        <div class="dashboard-brand">$aveIt</div>
+                        <button id="btn-open-notifications" class="dashboard-notifications">
+                            <span class="material-symbols-outlined">notifications</span>
+                            <span id="notification-dot" class="notification-dot"></span>
+                        </button>
+                    </div>
                 </header>
 
-                <!-- Summary Cards -->
-                <div class="summary-cards" style="margin-top: -12px;">
-                    <div class="summary-card">
-                        <div class="summary-card-icon cyan">
-                            <span class="material-symbols-outlined">trending_up</span>
-                        </div>
-                        <p class="summary-card-label">Ingresos</p>
-                        <p class="summary-card-value cyan" id="total-income">$0</p>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-card-icon green">
-                            <span class="material-symbols-outlined">trending_down</span>
-                        </div>
-                        <p class="summary-card-label">Gastado</p>
-                        <p class="summary-card-value green" id="total-spent">$0</p>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-card-icon orange">
+                <section class="home-balance-section">
+                    <div class="home-balance-card">
+                        <div class="home-balance-card-header">
                             <span class="material-symbols-outlined">account_balance_wallet</span>
+                            <p>Balance Total</p>
                         </div>
-                        <p class="summary-card-label">Balance</p>
-                        <p class="summary-card-value" id="balance">$0</p>
+                        <p id="balance" class="home-balance-value">$0</p>
+                        <div class="home-balance-trend-chip">
+                            <span class="material-symbols-outlined">trending_up</span>
+                            <span id="home-balance-trend-text">Este mes</span>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Chart Section -->
-                <section class="chart-section">
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h2 class="chart-title">Gastos del Mes</h2>
-                            <span class="chart-period" id="current-period">Mayo 2024</span>
+                    <div class="home-metrics-grid">
+                        <div class="home-metric-card">
+                            <p class="home-metric-label">Ingresos</p>
+                            <p class="home-metric-value income" id="total-income">$0</p>
+                            <div class="home-metric-progress"><span id="income-progress-bar"></span></div>
                         </div>
-                        <div class="chart-container">
-                            <canvas id="chart"></canvas>
+                        <div class="home-metric-card">
+                            <p class="home-metric-label">Gastos</p>
+                            <p class="home-metric-value expense" id="total-spent">$0</p>
+                            <div class="home-metric-progress"><span id="expense-progress-bar"></span></div>
                         </div>
-                        <div id="category-bar-container"></div>
-                        <div id="category-legend" class="category-legend"></div>
                     </div>
+                </section>
+
+                <section class="home-health-section">
+                    <div class="home-health-header">
+                        <h2>Salud del Presupuesto</h2>
+                        <span>In Control</span>
+                    </div>
+                    <div id="category-bar-container"></div>
+                    <div id="category-legend" class="category-legend"></div>
                 </section>
 
                 <!-- Budget Alert -->
@@ -105,7 +104,7 @@
 
                 <!-- Recent Expenses -->
                 <div class="section-header">
-                    <h2 class="section-title">Gastos Recientes</h2>
+                    <h2 class="section-title">Actividad Reciente</h2>
                     <button class="section-action" id="btn-see-all">Ver todos</button>
                 </div>
                 <div id="expenses-list" class="expenses-list"></div>
@@ -456,6 +455,26 @@
                 </div>
             </div>
 
+            <!-- Bottom Sheet Modal (Notifications Center) -->
+            <div id="notifications-sheet-overlay" class="bottom-sheet-overlay">
+                <div class="bottom-sheet">
+                    <div class="bottom-sheet-handle">
+                        <div class="bottom-sheet-handle-bar"></div>
+                    </div>
+                    <div class="bottom-sheet-header">
+                        <button id="btn-close-notifications-sheet" class="bottom-sheet-close">Cerrar</button>
+                        <h2 class="bottom-sheet-title">Notificaciones</h2>
+                        <button id="btn-mark-notifications-read" class="bottom-sheet-close" style="color: #30c9e8;">Marcar leídas</button>
+                    </div>
+                    <div class="bottom-sheet-content">
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <button id="btn-enable-notifications-home" class="btn-outline">Activar notificaciones push</button>
+                        </div>
+                        <div id="notifications-list" class="notifications-list"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Snackbar -->
             <div id="snackbar" class="snackbar">
                 <div id="snackbar-icon" class="snackbar-icon success">
@@ -510,6 +529,29 @@
                             <input type="email" id="profile-email" class="form-input" placeholder="tu@email.com" />
                         </div>
                         <button class="btn-primary" id="btn-save-profile">Guardar</button>
+                    </div>
+
+                    <div class="auth-card">
+                        <div class="auth-card-header">
+                            <h3>Cuenta</h3>
+                            <small id="auth-status-text">Sin sesión</small>
+                        </div>
+                        <p id="auth-session-email" class="auth-session-email"></p>
+                        <div id="auth-credentials-group">
+                            <div class="form-group">
+                                <label class="form-label">Email de acceso</label>
+                                <input type="email" id="auth-email" class="form-input" placeholder="tu@email.com" />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Contraseña</label>
+                                <input type="password" id="auth-password" class="form-input" placeholder="Mínimo 6 caracteres" />
+                            </div>
+                        </div>
+                        <div class="auth-actions">
+                            <button class="btn-primary" id="btn-auth-login">Iniciar sesión</button>
+                            <button class="btn-outline" id="btn-auth-register">Registrarme</button>
+                            <button class="btn-outline" id="btn-auth-logout">Cerrar sesión</button>
+                        </div>
                     </div>
                 </div>
 

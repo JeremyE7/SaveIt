@@ -3,6 +3,7 @@ import type { Subscription } from "../types/Subscription";
 import { getDataFromLocalStorage, setDataToLocalStorage } from "../utils/LocalStorage";
 import { getTodayLocalInputDateValue } from "../utils/general";
 import { LocalStorageSubscriptionRepository, type SubscriptionRepository } from "./subscriptions.repository";
+import { addNotificationCenterItem } from "./notifications";
 
 let subscriptionRepository: SubscriptionRepository = new LocalStorageSubscriptionRepository();
 
@@ -212,6 +213,11 @@ export const processSubscriptionsForToday = async (): Promise<{ generatedCount: 
           'Recordatorio de suscripción',
           `Mañana o pronto se cobrará ${subscription.name} por $${subscription.amount.toFixed(2)}.`
         );
+        addNotificationCenterItem(
+          'Recordatorio de suscripción',
+          `Se aproxima el cobro de ${subscription.name} por $${subscription.amount.toFixed(2)}.`,
+          'subscription_reminder'
+        );
         markNotificationAsSent(reminderKey);
         reminderCount += 1;
       }
@@ -244,6 +250,11 @@ export const processSubscriptionsForToday = async (): Promise<{ generatedCount: 
       await sendPwaNotification(
         'Cobro de suscripción registrado',
         `Se registró ${subscription.name} por $${subscription.amount.toFixed(2)} en ${period}.`
+      );
+      addNotificationCenterItem(
+        'Cobro de suscripción registrado',
+        `${subscription.name}: $${subscription.amount.toFixed(2)} (${period}).`,
+        'subscription_charge'
       );
       markNotificationAsSent(chargeKey);
     }

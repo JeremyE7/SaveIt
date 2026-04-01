@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -15,16 +16,35 @@ const isFirebaseConfigValid = (): boolean => {
 };
 
 let dbInstance: ReturnType<typeof getFirestore> | null = null;
+let authInstance: ReturnType<typeof getAuth> | null = null;
+let appInitialized: ReturnType<typeof initializeApp> | null = null;
 
 export const isFirebaseEnabled = (): boolean => isFirebaseConfigValid();
 
 export const getFirebaseDb = () => {
   if (!isFirebaseConfigValid()) return null;
 
-  if (!dbInstance) {
-    const app = initializeApp(firebaseConfig);
-    dbInstance = getFirestore(app);
+  if (!appInitialized) {
+    appInitialized = initializeApp(firebaseConfig);
+  }
+
+  if (!dbInstance && appInitialized) {
+    dbInstance = getFirestore(appInitialized);
   }
 
   return dbInstance;
+};
+
+export const getFirebaseAuth = () => {
+  if (!isFirebaseConfigValid()) return null;
+
+  if (!appInitialized) {
+    appInitialized = initializeApp(firebaseConfig);
+  }
+
+  if (!authInstance && appInitialized) {
+    authInstance = getAuth(appInitialized);
+  }
+
+  return authInstance;
 };

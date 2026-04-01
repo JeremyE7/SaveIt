@@ -4,22 +4,26 @@ import { loadExpenses } from "./dom/htmlElements";
 import { getAllExpenses, confirmDeleteExpense, setExpenseToEdit } from "./features/expenses";
 import { getAllIncomes } from "./features/incomes";
 import { checkBudgetAlertsOnLoad, renderBudgetsList, openBudgetConfigModal, closeBudgetConfigModal, handleBudgetConfigSave, updateBudgetPreview } from "./features/budgetModal";
-import { getCurrentMonthTotal, getCurrentMonthExpenses, getCategoryDistribution, getCurrentMonthIncomeTotal, getExpensesByMonth, getIncomesByMonth, getMonthTotal, getIncomeMonthTotal, getAllExpensesTotal, getAllIncomesTotal, getTodayLocalInputDateValue } from "./utils/general";
+import { getCurrentMonthTotal, getCategoryDistribution, getCurrentMonthIncomeTotal, getExpensesByMonth, getIncomesByMonth, getMonthTotal, getIncomeMonthTotal, getAllExpensesTotal, getAllIncomesTotal, getTodayLocalInputDateValue } from "./utils/general";
 import { expenseGroups, type ExpenseGroup } from "./types/ExpenseGroups";
 import { incomeCategories, type IncomeCategory } from "./types/IncomeCategories";
-import { generatePieChart } from "./features/graphs";
 import { initSwipeExpense, initSwipeIncome, initSwipeCategory, initSwipeSubscription, openEditModal, openEditIncomeModal } from "./utils/swipe";
 import { exportData, importData } from "./features/importExport";
 import { confirmDeleteIncome } from "./features/incomes";
 import { confirmDeleteSubscription, getAllSubscriptions, getNextChargeDate, getNotificationPermissionState, processSubscriptionsForToday, requestSubscriptionNotificationPermission, toggleSubscriptionStatus, upsertSubscription } from "./features/subscriptions";
-import { initializeFirestoreSync } from "./features/firestoreSync";
+import { clearTrackedLocalData, initializeFirestoreSync } from "./features/firestoreSync";
+import { loginWithEmailPassword, logoutCurrentUser, registerWithEmailPassword, subscribeAuthState } from "./features/auth";
+import { getNotificationCenterItems, getNotificationUnreadCount, markAllNotificationsAsRead } from "./features/notifications";
 import type { Expense } from "./types/Expense";
 import type { Income } from "./types/Income";
 import type { Subscription } from "./types/Subscription";
+import type { User } from "firebase/auth";
 
 registerSW({ immediate: false });
 
 let currentView = 'home';
+let currentAuthUser: User | null = null;
+let lastAuthUid: string | null = null;
 
 const viewOrder: Record<string, number> = {
   home: 0,
@@ -163,13 +167,28 @@ const loadHomeView = () => {
   const incomeEl = document.getElementById('total-income');
   const spentEl = document.getElementById('total-spent');
   const balanceEl = document.getElementById('balance');
+  const trendTextEl = document.getElementById('home-balance-trend-text');
+  const incomeProgressEl = document.getElementById('income-progress-bar') as HTMLElement;
+  const expenseProgressEl = document.getElementById('expense-progress-bar') as HTMLElement;
 
   if (incomeEl) incomeEl.textContent = `$${totalIncome.toFixed(2)}`;
   if (spentEl) spentEl.textContent = `$${totalSpent.toFixed(2)}`;
   if (balanceEl) {
     const balanceValue = balance >= 0 ? `+$${balance.toFixed(2)}` : `-$${Math.abs(balance).toFixed(2)}`;
     balanceEl.textContent = balanceValue;
-    balanceEl.className = balance >= 0 ? 'summary-card-value green' : 'summary-card-value';
+    balanceEl.className = balance >= 0 ? 'home-balance-value' : 'home-balance-value negative';
+  }
+
+  if (trendTextEl) {
+    trendTextEl.textContent = balance >= 0 ? 'En control este mes' : 'Revisa tus gastos del mes';
+  }
+
+  if (incomeProgressEl && expenseProgressEl) {
+    const base = Math.max(totalIncome, totalSpent, 1);
+    const incomePct = Math.min((totalIncome / base) * 100, 100);
+    const expensePct = Math.min((totalSpent / base) * 100, 100);
+    incomeProgressEl.style.width = `${incomePct}%`;
+    expenseProgressEl.style.width = `${expensePct}%`;
   }
 
   const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
@@ -182,65 +201,15 @@ const loadHomeView = () => {
   if (avatarEl && userSettings.name) {
     const initial = userSettings.name.charAt(0).toUpperCase();
     avatarEl.innerHTML = `<span class="dashboard-avatar-initial">${initial}</span>`;
-    avatarEl.style.background = '#30c9e8';
+    avatarEl.style.background = 'rgba(0, 229, 255, 0.24)';
   } else if (avatarEl) {
     avatarEl.innerHTML = '<span class="material-symbols-outlined">account_circle</span>';
     avatarEl.style.background = '';
   }
 
-  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-  const periodEl = document.getElementById('current-period');
-  if (periodEl) {
-    const now = new Date();
-    periodEl.textContent = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
-  }
-
-  const expenses = getCurrentMonthExpenses();
-  const labels: string[] = [];
-  const data: number[] = [];
-  const colors: string[] = [];
-
-  const getExpenseColor = (category: string): string => {
-    if (category.startsWith('custom_')) {
-      const categoryId = category.replace('custom_', '');
-      const customCategories = getCustomCategories();
-      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
-      if (customCat) return customCat.color;
-    }
-    return expenseGroups[category as ExpenseGroup]?.color || '#666';
-  };
-
-  const getExpenseLabel = (category: string): string => {
-    if (category.startsWith('custom_')) {
-      const categoryId = category.replace('custom_', '');
-      const customCategories = getCustomCategories();
-      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
-      if (customCat) return customCat.name;
-    }
-    return expenseGroups[category as ExpenseGroup]?.label || category;
-  };
-
-  const categoryMap = new Map<string, string>();
-
-  expenses.forEach((expense) => {
-    if (!categoryMap.has(expense.category)) {
-      categoryMap.set(expense.category, getExpenseLabel(expense.category));
-    }
-    const labelName = categoryMap.get(expense.category);
-    if (labels.includes(labelName || expense.category)) {
-      const index = labels.indexOf(labelName || expense.category);
-      data[index] += expense.amount;
-    } else {
-      labels.push(labelName || expense.category);
-      data.push(expense.amount);
-      colors.push(getExpenseColor(expense.category));
-    }
-  });
-
-  generatePieChart(labels, data, colors);
-
   loadExpenses();
   renderCategoryBar();
+  updateNotificationBell();
 };
 
 let statsSelectedYear: number;
@@ -895,6 +864,62 @@ const loadSubscriptionsView = () => {
   renderSubscriptionsList();
 };
 
+const updateNotificationBell = () => {
+  const dot = document.getElementById('notification-dot');
+  if (!dot) return;
+
+  const unread = getNotificationUnreadCount();
+  dot.classList.toggle('hidden', unread === 0);
+};
+
+const renderNotificationsList = () => {
+  const container = document.getElementById('notifications-list');
+  if (!container) return;
+
+  const items = getNotificationCenterItems();
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="expense-empty" style="padding: 20px 0;">
+        <span class="material-symbols-outlined" style="font-size: 36px; opacity: 0.4;">notifications</span>
+        <p>Sin notificaciones</p>
+        <small>Cuando haya cobros o recordatorios aparecerán aquí.</small>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = items.map((item) => {
+    const dateText = new Date(item.createdAt).toLocaleString('es-EC', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    return `
+      <div class="notification-item ${item.read ? 'read' : 'unread'}">
+        <div class="notification-item-header">
+          <p class="notification-item-title">${item.title}</p>
+          <span class="notification-item-date">${dateText}</span>
+        </div>
+        <p class="notification-item-body">${item.body}</p>
+      </div>
+    `;
+  }).join('');
+};
+
+const openNotificationsSheet = () => {
+  renderNotificationsList();
+  const overlay = document.getElementById('notifications-sheet-overlay');
+  if (overlay) overlay.classList.add('active');
+};
+
+const closeNotificationsSheet = () => {
+  const overlay = document.getElementById('notifications-sheet-overlay');
+  if (overlay) overlay.classList.remove('active');
+};
+
 const setupSyncStatusIndicator = () => {
   const indicator = document.getElementById('sync-status-indicator');
   if (!indicator) return;
@@ -952,8 +977,125 @@ const setupSyncStatusIndicator = () => {
 
 const loadProfileView = () => {
   loadUserSettings();
+  updateAuthUi();
   loadCategoriesList();
   setupProfileTabs();
+};
+
+const getAuthCredentials = (): { email: string; password: string } => {
+  const emailInput = document.getElementById('auth-email') as HTMLInputElement;
+  const passwordInput = document.getElementById('auth-password') as HTMLInputElement;
+
+  return {
+    email: emailInput?.value?.trim() || '',
+    password: passwordInput?.value?.trim() || '',
+  };
+};
+
+const updateAuthUi = () => {
+  const authStatus = document.getElementById('auth-status-text');
+  const authSessionEmail = document.getElementById('auth-session-email');
+  const credentialsGroup = document.getElementById('auth-credentials-group');
+  const authEmailInput = document.getElementById('auth-email') as HTMLInputElement;
+  const authPasswordInput = document.getElementById('auth-password') as HTMLInputElement;
+  const loginBtn = document.getElementById('btn-auth-login') as HTMLButtonElement;
+  const registerBtn = document.getElementById('btn-auth-register') as HTMLButtonElement;
+  const logoutBtn = document.getElementById('btn-auth-logout') as HTMLButtonElement;
+  const profileEmailInput = document.getElementById('profile-email') as HTMLInputElement;
+
+  if (authStatus) {
+    if (currentAuthUser) {
+      authStatus.textContent = 'Sesión iniciada';
+      authStatus.style.color = '#86efac';
+    } else {
+      authStatus.textContent = 'Sin sesión';
+      authStatus.style.color = 'var(--color-text-secondary)';
+    }
+  }
+
+  if (authSessionEmail) {
+    authSessionEmail.textContent = currentAuthUser?.email ? `Conectado como ${currentAuthUser.email}` : '';
+    authSessionEmail.style.display = currentAuthUser ? 'block' : 'none';
+  }
+
+  if (credentialsGroup) {
+    credentialsGroup.style.display = currentAuthUser ? 'none' : 'block';
+  }
+
+  if (currentAuthUser) {
+    if (authEmailInput) authEmailInput.value = '';
+    if (authPasswordInput) authPasswordInput.value = '';
+  }
+
+  if (loginBtn) {
+    loginBtn.style.display = currentAuthUser ? 'none' : 'block';
+  }
+
+  if (registerBtn) {
+    registerBtn.style.display = currentAuthUser ? 'none' : 'block';
+  }
+
+  if (logoutBtn) {
+    logoutBtn.style.display = currentAuthUser ? 'block' : 'none';
+  }
+
+  if (profileEmailInput) {
+    profileEmailInput.value = currentAuthUser?.email || profileEmailInput.value;
+    profileEmailInput.readOnly = Boolean(currentAuthUser);
+  }
+};
+
+const setupAuthStateSync = async (): Promise<void> => {
+  await new Promise<void>((resolve) => {
+    let initialized = false;
+
+    subscribeAuthState(async (user) => {
+      currentAuthUser = user;
+      updateAuthUi();
+
+      if (user) {
+        await initializeFirestoreSync(user.uid);
+      } else {
+        if (lastAuthUid) {
+          clearTrackedLocalData();
+        }
+        await initializeFirestoreSync();
+      }
+
+      lastAuthUid = user?.uid || null;
+
+      loadHomeView();
+      if (currentView === 'stats') {
+        updateStatsCards();
+        if (statsCurrentTab === 'expenses') {
+          loadStatsExpenses();
+        } else {
+          loadStatsIncomes();
+        }
+      }
+
+      if (!initialized) {
+        initialized = true;
+        resolve();
+      }
+    });
+  });
+};
+
+const getReadableAuthError = (code: string): string => {
+  if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
+    return 'Credenciales inválidas';
+  }
+  if (code.includes('email-already-in-use')) {
+    return 'Ese email ya está registrado';
+  }
+  if (code.includes('weak-password')) {
+    return 'La contraseña debe tener al menos 6 caracteres';
+  }
+  if (code.includes('invalid-email')) {
+    return 'Email inválido';
+  }
+  return 'No se pudo completar la autenticación';
 };
 
 const loadUserSettings = () => {
@@ -962,7 +1104,10 @@ const loadUserSettings = () => {
   const emailInput = document.getElementById('profile-email') as HTMLInputElement;
 
   if (nameInput) nameInput.value = settings.name || '';
-  if (emailInput) emailInput.value = settings.email || '';
+  if (emailInput) {
+    emailInput.value = currentAuthUser?.email || settings.email || '';
+    emailInput.readOnly = Boolean(currentAuthUser);
+  }
   updateProfileAvatar(settings.name || '');
 };
 
@@ -984,9 +1129,10 @@ const saveUserSettings = () => {
   const nameInput = document.getElementById('profile-name') as HTMLInputElement;
   const emailInput = document.getElementById('profile-email') as HTMLInputElement;
 
+  const persisted = JSON.parse(localStorage.getItem('userSettings') || '{}');
   const settings = {
     name: nameInput?.value?.trim() || '',
-    email: emailInput?.value?.trim() || ''
+    email: currentAuthUser?.email || emailInput?.value?.trim() || persisted.email || ''
   };
 
   localStorage.setItem('userSettings', JSON.stringify(settings));
@@ -1323,26 +1469,26 @@ const renderCategoryBar = () => {
 
   if (stats.length === 0) {
     if (barContainer) barContainer.innerHTML = '';
-    if (legendContainer) legendContainer.innerHTML = '<p style="text-align: center; color: var(--color-text-secondary); font-size: 14px;">No hay gastos este mes</p>';
+    if (legendContainer) legendContainer.innerHTML = '<p style="text-align: center; color: var(--color-text-secondary); font-size: 13px; margin: 6px 0 0;">No hay gastos este mes</p>';
     return;
   }
 
   if (barContainer) {
-    barContainer.innerHTML = `
-      <div class="category-bar">
-        ${stats.map(s => `<div class="category-bar-segment" style="width: ${s.percentage}%; background: ${s.color};"></div>`).join('')}
+    barContainer.innerHTML = stats.slice(0, 3).map((s) => `
+      <div class="home-category-progress-item">
+        <div class="home-category-progress-header">
+          <span class="home-category-progress-label">${s.label}</span>
+          <span class="home-category-progress-value">${s.percentage.toFixed(0)}%</span>
+        </div>
+        <div class="home-category-progress-track">
+          <span class="home-category-progress-fill" style="width: ${Math.min(s.percentage, 100)}%; background: ${s.color};"></span>
+        </div>
       </div>
-    `;
+    `).join('');
   }
 
   if (legendContainer) {
-    legendContainer.innerHTML = stats.slice(0, 4).map(s => `
-      <div class="category-legend-item">
-        <div class="category-legend-dot" style="background: ${s.color};"></div>
-        <span class="category-legend-label">${s.label}</span>
-        <span class="category-legend-value">${s.percentage.toFixed(0)}%</span>
-      </div>
-    `).join('');
+    legendContainer.innerHTML = '';
   }
 };
 
@@ -1853,6 +1999,28 @@ function setupEventListeners() {
 
   document.getElementById('btn-see-all')?.addEventListener('click', () => showView('stats'));
   document.getElementById('btn-open-subscriptions-view')?.addEventListener('click', () => showView('subscriptions'));
+  document.getElementById('btn-open-notifications')?.addEventListener('click', () => openNotificationsSheet());
+  document.getElementById('btn-close-notifications-sheet')?.addEventListener('click', closeNotificationsSheet);
+  document.getElementById('notifications-sheet-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeNotificationsSheet();
+  });
+
+  document.getElementById('btn-mark-notifications-read')?.addEventListener('click', () => {
+    markAllNotificationsAsRead();
+    renderNotificationsList();
+    showSnackbar('Notificaciones marcadas como leídas', 'success');
+  });
+
+  document.getElementById('btn-enable-notifications-home')?.addEventListener('click', async () => {
+    const permission = await requestSubscriptionNotificationPermission();
+    if (permission === 'granted') {
+      showSnackbar('Notificaciones activadas', 'success');
+    } else if (permission === 'denied') {
+      showSnackbar('Las notificaciones fueron bloqueadas', 'warning');
+    } else if (permission === 'unsupported') {
+      showSnackbar('Este navegador no soporta notificaciones', 'warning');
+    }
+  });
 
   document.getElementById('btn-back-stats')?.addEventListener('click', () => showView('home'));
   document.getElementById('btn-back-subscriptions')?.addEventListener('click', () => showView('budgets'));
@@ -1860,6 +2028,48 @@ function setupEventListeners() {
   document.getElementById('btn-back-profile')?.addEventListener('click', () => showView('home'));
 
   document.getElementById('btn-save-profile')?.addEventListener('click', saveUserSettings);
+
+  document.getElementById('btn-auth-login')?.addEventListener('click', async () => {
+    const { email, password } = getAuthCredentials();
+    if (!email || !password) {
+      showSnackbar('Completa email y contraseña', 'warning');
+      return;
+    }
+
+    try {
+      await loginWithEmailPassword(email, password);
+      showSnackbar('Sesión iniciada', 'success');
+    } catch (error) {
+      const err = error as { code?: string };
+      showSnackbar(getReadableAuthError(err.code || ''), 'error');
+    }
+  });
+
+  document.getElementById('btn-auth-register')?.addEventListener('click', async () => {
+    const { email, password } = getAuthCredentials();
+    if (!email || !password) {
+      showSnackbar('Completa email y contraseña', 'warning');
+      return;
+    }
+
+    try {
+      await registerWithEmailPassword(email, password);
+      showSnackbar('Cuenta creada e iniciada', 'success');
+    } catch (error) {
+      const err = error as { code?: string };
+      showSnackbar(getReadableAuthError(err.code || ''), 'error');
+    }
+  });
+
+  document.getElementById('btn-auth-logout')?.addEventListener('click', async () => {
+    try {
+      await logoutCurrentUser();
+      showSnackbar('Sesión cerrada', 'success');
+    } catch (error) {
+      const err = error as { code?: string };
+      showSnackbar(getReadableAuthError(err.code || ''), 'error');
+    }
+  });
 
   document.getElementById('btn-add-category')?.addEventListener('click', () => openCategoryModal());
   document.getElementById('btn-close-category-modal')?.addEventListener('click', closeCategoryModal);
@@ -1916,6 +2126,14 @@ window.addEventListener('subscriptionDeleted', () => {
   showSnackbar('Suscripción eliminada', 'success');
 });
 
+window.addEventListener('notificationCenterUpdated', () => {
+  updateNotificationBell();
+  const overlay = document.getElementById('notifications-sheet-overlay');
+  if (overlay?.classList.contains('active')) {
+    renderNotificationsList();
+  }
+});
+
 const MIGRATION_KEY = 'hasMigratedTo503020';
 
 const runMigration = () => {
@@ -1936,7 +2154,7 @@ const runMigration = () => {
 
 async function initApp() {
   setupSyncStatusIndicator();
-  await initializeFirestoreSync();
+  await setupAuthStateSync();
   runMigration();
   
   loadCategorySelect();
