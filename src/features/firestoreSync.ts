@@ -26,8 +26,8 @@ let currentSyncUid: string | null = null;
 
 type FirestoreSyncStatus = 'syncing' | 'synced' | 'error' | 'offline';
 
-const emitSyncStatus = (status: FirestoreSyncStatus) => {
-  window.dispatchEvent(new CustomEvent('firestoreSyncStatus', { detail: { status } }));
+const emitSyncStatus = (status: FirestoreSyncStatus, reason?: string) => {
+  window.dispatchEvent(new CustomEvent('firestoreSyncStatus', { detail: { status, reason } }));
 };
 
 const emitSyncedWithDelay = () => {
@@ -160,6 +160,8 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
   currentSyncUid = uid;
 
   if (previousUid && previousUid !== uid) {
+    // Evitar propagar borrado a la cuenta remota previa durante el switch de usuario
+    syncDocRef = null;
     clearTrackedLocalData();
   }
 
@@ -179,8 +181,13 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
     }
 
     emitSyncStatus('synced');
-  } catch {
-    emitSyncStatus(typeof navigator !== 'undefined' && navigator.onLine ? 'error' : 'offline');
+  } catch (error) {
+    const reason = (error as { code?: string; message?: string })?.code
+      || (error as { message?: string })?.message
+      || 'unknown-sync-error';
+
+    console.error('[firestore-sync] initialize failed:', reason, error);
+    emitSyncStatus(typeof navigator !== 'undefined' && navigator.onLine ? 'error' : 'offline', reason);
     // Si Firestore falla, app sigue funcionando local
   }
 };

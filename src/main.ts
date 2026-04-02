@@ -69,6 +69,11 @@ const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
     const oneSignal = await getOneSignalInstance();
     if (!oneSignal || typeof oneSignal.login !== 'function') return;
 
+    const subscriptionId = oneSignal?.User?.PushSubscription?.id;
+    if (!subscriptionId) {
+      return;
+    }
+
     // Si detectamos cambio de usuario local, limpiamos identidad previa antes de re-login
     if (lastOneSignalExternalId && lastOneSignalExternalId !== user.uid && typeof oneSignal.logout === 'function') {
       try {
@@ -110,6 +115,12 @@ const clearOneSignalIdentity = async (): Promise<void> => {
   try {
     const oneSignal = await getOneSignalInstance();
     if (!oneSignal || typeof oneSignal.logout !== 'function') return;
+
+    const subscriptionId = oneSignal?.User?.PushSubscription?.id;
+    if (!subscriptionId) {
+      lastOneSignalExternalId = null;
+      return;
+    }
 
     await oneSignal.logout();
   } catch (error) {
@@ -1470,8 +1481,9 @@ const setupSyncStatusIndicator = () => {
   };
 
   window.addEventListener('firestoreSyncStatus', ((event: Event) => {
-    const customEvent = event as CustomEvent<{ status: 'syncing' | 'synced' | 'error' | 'offline' }>;
+    const customEvent = event as CustomEvent<{ status: 'syncing' | 'synced' | 'error' | 'offline'; reason?: string }>;
     const status = customEvent.detail?.status;
+    const reason = customEvent.detail?.reason;
 
     if (status === 'syncing') {
       show('Sincronizando…', '#94a3b8');
@@ -1491,6 +1503,9 @@ const setupSyncStatusIndicator = () => {
     }
 
     if (status === 'error') {
+      if (reason) {
+        console.error('[sync-status:error]', reason);
+      }
       show('Error de sincronización', '#fca5a5');
       hide(2200);
     }
@@ -1592,10 +1607,11 @@ const setupAuthStateSync = async (): Promise<void> => {
       if (user) {
         await initializeFirestoreSync(user.uid);
       } else {
+        // Primero desacoplar sync remoto; luego limpiar solo local
+        await initializeFirestoreSync();
         if (lastAuthUid) {
           clearTrackedLocalData();
         }
-        await initializeFirestoreSync();
       }
 
       lastAuthUid = user?.uid || null;
