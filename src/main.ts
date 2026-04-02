@@ -1379,8 +1379,43 @@ const renderNotificationsList = () => {
   }).join('');
 };
 
+const updateNotificationsSheetActivationButton = async () => {
+  const enableBtn = document.getElementById('btn-enable-notifications-home') as HTMLButtonElement;
+  if (!enableBtn) return;
+
+  if (!currentAuthUser) {
+    enableBtn.style.display = 'none';
+    return;
+  }
+
+  const permission = getNotificationPermissionState();
+
+  if (permission === 'unsupported' || permission === 'denied') {
+    enableBtn.style.display = 'none';
+    return;
+  }
+
+  if (permission === 'granted') {
+    const oneSignalState = await getOneSignalSubscriptionState();
+    if (oneSignalState === 'subscribed') {
+      enableBtn.style.display = 'none';
+      return;
+    }
+
+    enableBtn.style.display = 'inline-flex';
+    enableBtn.disabled = false;
+    enableBtn.textContent = oneSignalState === 'not-subscribed' ? 'Reconectar notificaciones push' : 'Reintentar activación push';
+    return;
+  }
+
+  enableBtn.style.display = 'inline-flex';
+  enableBtn.disabled = false;
+  enableBtn.textContent = 'Activar notificaciones push';
+};
+
 const openNotificationsSheet = () => {
   renderNotificationsList();
+  void updateNotificationsSheetActivationButton();
   const overlay = document.getElementById('notifications-sheet-overlay');
   if (overlay) overlay.classList.add('active');
 };
@@ -1526,6 +1561,7 @@ const updateAuthUi = () => {
   if (displayNameEl) displayNameEl.textContent = resolvedName;
   updateProfileAvatar(resolvedName);
   void updateSubscriptionNotificationStatus();
+  void updateNotificationsSheetActivationButton();
 };
 
 const setupAuthStateSync = async (): Promise<void> => {
@@ -2592,7 +2628,16 @@ function setupEventListeners() {
   });
 
   document.getElementById('btn-enable-notifications-home')?.addEventListener('click', async () => {
+    if (!currentAuthUser) {
+      showSnackbar('Inicia sesión para activar notificaciones push', 'warning');
+      await updateNotificationsSheetActivationButton();
+      return;
+    }
+
     const permission = await requestSubscriptionNotificationPermission();
+    await updateSubscriptionNotificationStatus();
+    await updateNotificationsSheetActivationButton();
+
     if (permission === 'granted') {
       showSnackbar('Notificaciones activadas', 'success');
     } else if (permission === 'denied') {
