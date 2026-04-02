@@ -93,17 +93,34 @@ const run = async () => {
   }
 
   const usersSnap = await db.collection('users').get();
+  let userRefs = usersSnap.docs.map((doc) => doc.ref);
 
-  let usersFound = usersSnap.size;
+  if (userRefs.length === 0) {
+    const appDataGroupSnap = await db.collectionGroup('appData').get();
+    const mainDocs = appDataGroupSnap.docs.filter((doc) => doc.id === 'main');
+
+    const refsByUid = new Map();
+    mainDocs.forEach((doc) => {
+      const parentUserRef = doc.ref.parent.parent;
+      if (parentUserRef && parentUserRef.parent.id === 'users') {
+        refsByUid.set(parentUserRef.id, parentUserRef);
+      }
+    });
+
+    userRefs = Array.from(refsByUid.values());
+    console.log(`[debug] fallbackViaCollectionGroup=true appDataMainDocs=${mainDocs.length} inferredUsers=${userRefs.length}`);
+  }
+
+  let usersFound = userRefs.length;
   let usersWithAppData = 0;
   let usersWithSubscriptions = 0;
   let processedUsers = 0;
   let reminderNotifications = 0;
   let chargeNotifications = 0;
 
-  for (const userDoc of usersSnap.docs) {
-    const uid = userDoc.id;
-    const appDataRef = userDoc.ref.collection('appData').doc('main');
+  for (const userRef of userRefs) {
+    const uid = userRef.id;
+    const appDataRef = userRef.collection('appData').doc('main');
     const appDataSnap = await appDataRef.get();
 
     if (!appDataSnap.exists) continue;

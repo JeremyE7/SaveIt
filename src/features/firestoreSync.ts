@@ -163,11 +163,23 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
   }
 
   syncDocRef = doc(db, 'users', uid, 'appData', 'main');
+  const userDocRef = doc(db, 'users', uid);
 
   patchLocalStorageForSync();
 
   try {
     emitSyncStatus('syncing');
+
+    // Asegura que el documento padre del usuario exista
+    await setDoc(
+      userDocRef,
+      {
+        uid,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+
     const snapshot = await getDoc(syncDocRef);
 
     if (snapshot.exists()) {
