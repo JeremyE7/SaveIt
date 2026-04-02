@@ -28,6 +28,11 @@ let lastAuthUid: string | null = null;
 const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
   if (typeof window === 'undefined') return;
 
+  const isNoSubscriptionAliasError = (error: unknown): boolean => {
+    const message = String((error as { message?: string })?.message || error || '');
+    return message.includes('No subscription with alias');
+  };
+
   const applyIdentity = async (oneSignal: any) => {
     try {
       if (user) {
@@ -44,7 +49,13 @@ const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
 
             // Recuperación ante conflicto de alias: limpiar identidad local y reintentar login
             if (typeof oneSignal.logout === 'function') {
-              await oneSignal.logout();
+              try {
+                await oneSignal.logout();
+              } catch (logoutError) {
+                if (!isNoSubscriptionAliasError(logoutError)) {
+                  throw logoutError;
+                }
+              }
             }
 
             await oneSignal.login(user.uid);
@@ -71,12 +82,20 @@ const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
 const clearOneSignalIdentity = async (): Promise<void> => {
   if (typeof window === 'undefined') return;
 
+  const isNoSubscriptionAliasError = (error: unknown): boolean => {
+    const message = String((error as { message?: string })?.message || error || '');
+    return message.includes('No subscription with alias');
+  };
+
   const runLogout = async (oneSignal: any) => {
     try {
       if (typeof oneSignal?.logout === 'function') {
         await oneSignal.logout();
       }
-    } catch {
+    } catch (error) {
+      if (isNoSubscriptionAliasError(error)) {
+        return;
+      }
       // noop
     }
   };
