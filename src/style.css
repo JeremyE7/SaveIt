@@ -4111,6 +4111,45 @@ li span {
     border: 1px solid rgba(0, 229, 255, 0.14);
 }
 
+#profile-view .profile-push-health {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(51, 53, 57, 0.45);
+    border: 1px solid rgba(132, 147, 150, 0.16);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#profile-view .profile-push-health p {
+    margin: 0;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#profile-view .push-health-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    background: rgba(132, 147, 150, 0.55);
+    box-shadow: 0 0 0 3px rgba(132, 147, 150, 0.16);
+}
+
+#profile-view .push-health-dot.on {
+    background: #69ff87;
+    box-shadow: 0 0 0 3px rgba(105, 255, 135, 0.16);
+}
+
+#profile-view .push-health-dot.warn {
+    background: #facc15;
+    box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.16);
+}
+
 #profile-view .profile-logout-btn {
     border-color: rgba(255, 180, 171, 0.4);
     color: #ffb4ab;

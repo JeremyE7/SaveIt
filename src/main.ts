@@ -40,19 +40,37 @@ const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
 
   const applyIdentity = async (oneSignal: any) => {
     try {
-      // Evita aliases fantasma al forzar estado limpio antes de vincular
-      if (typeof oneSignal.logout === 'function') {
-        await oneSignal.logout();
-      }
-
       if (user) {
+        const currentExternalId = String(oneSignal?.User?.externalId || '').trim();
+
+        if (currentExternalId === user.uid) {
+          if (oneSignal?.User?.PushSubscription?.optIn) {
+            await oneSignal.User.PushSubscription.optIn();
+          }
+          lastOneSignalIdentity = targetIdentity;
+          return;
+        }
+
+        if (currentExternalId && currentExternalId !== user.uid && typeof oneSignal.logout === 'function') {
+          await oneSignal.logout();
+        }
+
         if (typeof oneSignal.login === 'function') {
           await oneSignal.login(user.uid);
+        }
+
+        if (oneSignal?.User?.PushSubscription?.optIn) {
+          await oneSignal.User.PushSubscription.optIn();
+        }
+      } else if (typeof oneSignal.logout === 'function') {
+        await oneSignal.logout();
+        if (oneSignal?.User?.PushSubscription?.optOut) {
+          await oneSignal.User.PushSubscription.optOut();
         }
       }
 
       lastOneSignalIdentity = targetIdentity;
-    } catch {
+    } catch (error) {
       // No romper auth por errores OneSignal, pero forzar resync posterior
       lastOneSignalIdentity = null;
     }
@@ -1039,7 +1057,16 @@ const updateSubscriptionNotificationStatus = async () => {
   const statusEl = document.getElementById('subscription-notification-status');
   const profilePushEl = document.getElementById('profile-push-indicator');
   const enableBtn = document.getElementById('btn-enable-subscription-notifications') as HTMLButtonElement;
+  const authDot = document.getElementById('push-health-auth');
+  const permissionDot = document.getElementById('push-health-permission');
+  const subscriptionDot = document.getElementById('push-health-subscription');
   if (!statusEl) return;
+
+  const setDotState = (el: HTMLElement | null, state: 'on' | 'off' | 'warn') => {
+    if (!el) return;
+    el.classList.remove('on', 'off', 'warn');
+    el.classList.add(state);
+  };
 
   const setEnableButton = (config: { visible: boolean; disabled: boolean; text: string }) => {
     if (!enableBtn) return;
@@ -1049,6 +1076,9 @@ const updateSubscriptionNotificationStatus = async () => {
   };
 
   if (!currentAuthUser) {
+    setDotState(authDot, 'off');
+    setDotState(permissionDot, 'off');
+    setDotState(subscriptionDot, 'off');
     statusEl.textContent = 'Estado: inicia sesión para activar notificaciones';
     if (profilePushEl) {
       profilePushEl.textContent = 'Push: desactivadas. Inicia sesión para vincular OneSignal y recibir alertas en este dispositivo.';
@@ -1058,8 +1088,11 @@ const updateSubscriptionNotificationStatus = async () => {
   }
 
   const state = getNotificationPermissionState();
+  setDotState(authDot, 'on');
 
   if (state === 'unsupported') {
+    setDotState(permissionDot, 'warn');
+    setDotState(subscriptionDot, 'off');
     statusEl.textContent = 'Estado: no soportado en este navegador';
     if (profilePushEl) {
       profilePushEl.textContent = 'Push: no disponible en este navegador.';
@@ -1069,21 +1102,25 @@ const updateSubscriptionNotificationStatus = async () => {
   }
 
   if (state === 'granted') {
+    setDotState(permissionDot, 'on');
     const oneSignalState = await getOneSignalSubscriptionState();
 
     if (oneSignalState === 'subscribed') {
+      setDotState(subscriptionDot, 'on');
       statusEl.textContent = 'Estado: activadas (OneSignal conectado)';
       if (profilePushEl) {
         profilePushEl.textContent = 'Push: activadas y conectadas con OneSignal en este dispositivo.';
       }
       setEnableButton({ visible: false, disabled: true, text: 'Activadas' });
     } else if (oneSignalState === 'not-subscribed') {
+      setDotState(subscriptionDot, 'warn');
       statusEl.textContent = 'Estado: permiso concedido, falta suscripción push';
       if (profilePushEl) {
         profilePushEl.textContent = 'Push: permiso concedido, pero este dispositivo aún no está suscrito en OneSignal.';
       }
       setEnableButton({ visible: true, disabled: false, text: 'Reconectar' });
     } else {
+      setDotState(subscriptionDot, 'warn');
       statusEl.textContent = 'Estado: permiso concedido, validando OneSignal...';
       if (profilePushEl) {
         profilePushEl.textContent = 'Push: validando conexión con OneSignal...';
@@ -1091,12 +1128,16 @@ const updateSubscriptionNotificationStatus = async () => {
       setEnableButton({ visible: true, disabled: false, text: 'Reintentar' });
     }
   } else if (state === 'denied') {
+    setDotState(permissionDot, 'warn');
+    setDotState(subscriptionDot, 'off');
     statusEl.textContent = 'Estado: bloqueadas';
     if (profilePushEl) {
       profilePushEl.textContent = 'Push: bloqueadas por el navegador. Debes habilitarlas desde configuración del sitio.';
     }
     setEnableButton({ visible: false, disabled: true, text: 'Bloqueadas' });
   } else {
+    setDotState(permissionDot, 'off');
+    setDotState(subscriptionDot, 'off');
     statusEl.textContent = 'Estado: pendiente de permiso';
     if (profilePushEl) {
       profilePushEl.textContent = 'Push: pendientes. Actívalas para recibir recordatorios de suscripciones.';
