@@ -84,6 +84,9 @@ const run = async () => {
 
   const usersSnap = await db.collection('users').get();
 
+  let usersFound = usersSnap.size;
+  let usersWithAppData = 0;
+  let usersWithSubscriptions = 0;
   let processedUsers = 0;
   let reminderNotifications = 0;
   let chargeNotifications = 0;
@@ -94,12 +97,14 @@ const run = async () => {
     const appDataSnap = await appDataRef.get();
 
     if (!appDataSnap.exists) continue;
+    usersWithAppData += 1;
 
     const data = appDataSnap.data() || {};
     const subscriptions = Array.isArray(data.subscriptions) ? data.subscriptions : [];
     const history = new Set(Array.isArray(data.subscriptionNotifications) ? data.subscriptionNotifications : []);
 
     if (!subscriptions.length) continue;
+    usersWithSubscriptions += 1;
 
     let userHistoryChanged = false;
 
@@ -169,7 +174,7 @@ const run = async () => {
   }
 
   console.log(
-    `[done] processedUsers=${processedUsers} reminderNotifications=${reminderNotifications} chargeNotifications=${chargeNotifications} dryRun=${dryRun}`,
+    `[done] usersFound=${usersFound} usersWithAppData=${usersWithAppData} usersWithSubscriptions=${usersWithSubscriptions} processedUsers=${processedUsers} reminderNotifications=${reminderNotifications} chargeNotifications=${chargeNotifications} dryRun=${dryRun}`,
   );
 };
 
