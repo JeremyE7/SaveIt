@@ -141,6 +141,36 @@ const getOneSignalSdk = (): any | null => {
   return (window as any).OneSignal || null;
 };
 
+export const getOneSignalSubscriptionState = async (): Promise<'subscribed' | 'not-subscribed' | 'unavailable'> => {
+  if (typeof window === 'undefined') return 'unavailable';
+
+  const deferred = (window as any).OneSignalDeferred;
+  if (!Array.isArray(deferred)) return 'unavailable';
+
+  return await new Promise((resolve) => {
+    let settled = false;
+
+    const finalize = (value: 'subscribed' | 'not-subscribed' | 'unavailable') => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    const timeoutId = window.setTimeout(() => finalize('unavailable'), 1500);
+
+    deferred.push(async (oneSignal: any) => {
+      try {
+        const optedIn = oneSignal?.User?.PushSubscription?.optedIn;
+        window.clearTimeout(timeoutId);
+        finalize(optedIn ? 'subscribed' : 'not-subscribed');
+      } catch {
+        window.clearTimeout(timeoutId);
+        finalize('unavailable');
+      }
+    });
+  });
+};
+
 const sendPwaNotification = async (title: string, body: string): Promise<void> => {
   if (!canNotify()) return;
 

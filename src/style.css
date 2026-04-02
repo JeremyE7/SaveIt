@@ -3511,6 +3511,41 @@ li span {
     margin-bottom: 8px;
 }
 
+#subscriptions-view .subscriptions-notification-card {
+    margin: 0;
+    border: none;
+    border-radius: 14px;
+    background: var(--color-bg-card);
+    padding: 12px 14px;
+}
+
+#subscriptions-view .subscriptions-notification-card .filter-group label {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+#subscriptions-view #subscription-notification-status {
+    display: block;
+    font-size: 12px;
+}
+
+#subscriptions-view #btn-enable-subscription-notifications {
+    margin-top: 0 !important;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(0, 229, 255, 0.1);
+}
+
+#subscriptions-view #btn-enable-subscription-notifications:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 #budgets-view .budgets-upcoming {
     margin-top: 4px;
     background: linear-gradient(135deg, rgba(52, 61, 150, 0.15), rgba(30, 32, 36, 0.2));

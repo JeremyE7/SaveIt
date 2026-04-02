@@ -10,7 +10,7 @@ import { incomeCategories, type IncomeCategory } from "./types/IncomeCategories"
 import { initSwipeExpense, initSwipeIncome, initSwipeCategory, initSwipeSubscription, openEditModal, openEditIncomeModal } from "./utils/swipe";
 import { exportData, importData } from "./features/importExport";
 import { confirmDeleteIncome } from "./features/incomes";
-import { confirmDeleteSubscription, getAllSubscriptions, getNextChargeDate, getNotificationPermissionState, processSubscriptionsForToday, requestSubscriptionNotificationPermission, toggleSubscriptionStatus, upsertSubscription } from "./features/subscriptions";
+import { confirmDeleteSubscription, getAllSubscriptions, getNextChargeDate, getNotificationPermissionState, getOneSignalSubscriptionState, processSubscriptionsForToday, requestSubscriptionNotificationPermission, toggleSubscriptionStatus, upsertSubscription } from "./features/subscriptions";
 import { clearTrackedLocalData, initializeFirestoreSync } from "./features/firestoreSync";
 import { changeCurrentUserPassword, loginWithEmailPassword, logoutCurrentUser, registerWithEmailPassword, subscribeAuthState } from "./features/auth";
 import { getNotificationCenterItems, getNotificationUnreadCount, markAllNotificationsAsRead } from "./features/notifications";
@@ -995,23 +995,56 @@ const loadBudgetsView = () => {
   renderBudgetsList();
 };
 
-const updateSubscriptionNotificationStatus = () => {
+const updateSubscriptionNotificationStatus = async () => {
   const statusEl = document.getElementById('subscription-notification-status');
+  const enableBtn = document.getElementById('btn-enable-subscription-notifications') as HTMLButtonElement;
   if (!statusEl) return;
 
   const state = getNotificationPermissionState();
 
   if (state === 'unsupported') {
     statusEl.textContent = 'Estado: no soportado en este navegador';
+    if (enableBtn) {
+      enableBtn.disabled = true;
+      enableBtn.textContent = 'No disponible';
+    }
     return;
   }
 
   if (state === 'granted') {
-    statusEl.textContent = 'Estado: activadas';
+    const oneSignalState = await getOneSignalSubscriptionState();
+
+    if (oneSignalState === 'subscribed') {
+      statusEl.textContent = 'Estado: activadas (OneSignal conectado)';
+      if (enableBtn) {
+        enableBtn.disabled = true;
+        enableBtn.textContent = 'Activadas';
+      }
+    } else if (oneSignalState === 'not-subscribed') {
+      statusEl.textContent = 'Estado: permiso concedido, falta suscripción push';
+      if (enableBtn) {
+        enableBtn.disabled = false;
+        enableBtn.textContent = 'Reconectar';
+      }
+    } else {
+      statusEl.textContent = 'Estado: permiso concedido, validando OneSignal...';
+      if (enableBtn) {
+        enableBtn.disabled = false;
+        enableBtn.textContent = 'Reintentar';
+      }
+    }
   } else if (state === 'denied') {
     statusEl.textContent = 'Estado: bloqueadas';
+    if (enableBtn) {
+      enableBtn.disabled = true;
+      enableBtn.textContent = 'Bloqueadas';
+    }
   } else {
     statusEl.textContent = 'Estado: pendiente de permiso';
+    if (enableBtn) {
+      enableBtn.disabled = false;
+      enableBtn.textContent = 'Activar';
+    }
   }
 };
 
@@ -1280,7 +1313,7 @@ const handleSaveSubscription = () => {
 
 const loadSubscriptionsView = () => {
   subscriptionsFilter = 'all';
-  updateSubscriptionNotificationStatus();
+  void updateSubscriptionNotificationStatus();
   renderSubscriptionsList();
 };
 
@@ -2492,7 +2525,7 @@ function setupEventListeners() {
 
   document.getElementById('btn-enable-subscription-notifications')?.addEventListener('click', async () => {
     const permission = await requestSubscriptionNotificationPermission();
-    updateSubscriptionNotificationStatus();
+    await updateSubscriptionNotificationStatus();
 
     if (permission === 'granted') {
       showSnackbar('Notificaciones activadas', 'success');

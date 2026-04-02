@@ -7,6 +7,7 @@ const oneSignalApiKey = process.env.ONESIGNAL_REST_API_KEY;
 const timeZone = process.env.NOTIFICATION_TIMEZONE || 'America/Guayaquil';
 const firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || '(default)';
 const dryRun = (process.env.DRY_RUN || '').toLowerCase() === 'true';
+const HISTORY_RETENTION_MONTHS = Number(process.env.NOTIFICATION_HISTORY_MONTHS || 6);
 
 if (!serviceAccountJson) {
   throw new Error('Missing FIREBASE_SERVICE_ACCOUNT_JSON');
@@ -46,6 +47,37 @@ const getDatePartsInTZ = () => {
     isoDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
     period: `${year}-${String(month).padStart(2, '0')}`,
   };
+};
+
+const parseHistoryPeriod = (entry) => {
+  const parts = String(entry || '').split(':');
+  if (parts.length < 3) return null;
+
+  const [yearRaw, monthRaw] = parts[1].split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    return null;
+  }
+
+  return { year, month };
+};
+
+const monthDiff = (year, month, referenceYear, referenceMonth) => {
+  const currentIndex = referenceYear * 12 + (referenceMonth - 1);
+  const entryIndex = year * 12 + (month - 1);
+  return currentIndex - entryIndex;
+};
+
+const pruneHistory = (history, referenceYear, referenceMonth) => {
+  return history.filter((entry) => {
+    const parsed = parseHistoryPeriod(entry);
+    if (!parsed) return false;
+
+    const diff = monthDiff(parsed.year, parsed.month, referenceYear, referenceMonth);
+    return diff >= 0 && diff <= HISTORY_RETENTION_MONTHS;
+  });
 };
 
 const sendPush = async ({ externalId, title, body, data }) => {
@@ -128,7 +160,9 @@ const run = async () => {
 
     const data = appDataSnap.data() || {};
     const subscriptions = Array.isArray(data.subscriptions) ? data.subscriptions : [];
-    const history = new Set(Array.isArray(data.subscriptionNotifications) ? data.subscriptionNotifications : []);
+    const rawHistory = Array.isArray(data.subscriptionNotifications) ? data.subscriptionNotifications : [];
+    const prunedHistory = pruneHistory(rawHistory, today.year, today.month);
+    const history = new Set(prunedHistory);
 
     if (!subscriptions.length) continue;
     usersWithSubscriptions += 1;
@@ -187,7 +221,7 @@ const run = async () => {
       }
     }
 
-    if (userHistoryChanged) {
+    if (userHistoryChanged || prunedHistory.length !== rawHistory.length) {
       await appDataRef.set(
         {
           subscriptionNotifications: Array.from(history),
