@@ -24,34 +24,70 @@ registerSW({ immediate: false });
 let currentView = 'home';
 let currentAuthUser: User | null = null;
 let lastAuthUid: string | null = null;
+let lastOneSignalIdentity: string | null = null;
+let oneSignalSyncInFlight: Promise<void> | null = null;
 
 const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
   if (typeof window === 'undefined') return;
 
+  const targetIdentity = user ? `uid:${user.uid}` : 'logged-out';
+  if (lastOneSignalIdentity === targetIdentity) return;
+
+  if (oneSignalSyncInFlight) {
+    await oneSignalSyncInFlight;
+    if (lastOneSignalIdentity === targetIdentity) return;
+  }
+
   const applyIdentity = async (oneSignal: any) => {
     try {
+      // Evita aliases fantasma al forzar estado limpio antes de vincular
+      if (typeof oneSignal.logout === 'function') {
+        await oneSignal.logout();
+      }
+
       if (user) {
         if (typeof oneSignal.login === 'function') {
           await oneSignal.login(user.uid);
         }
-      } else if (typeof oneSignal.logout === 'function') {
-        await oneSignal.logout();
       }
+
+      lastOneSignalIdentity = targetIdentity;
     } catch {
-      // noop: OneSignal no debe romper flujo auth
+      // No romper auth por errores OneSignal, pero forzar resync posterior
+      lastOneSignalIdentity = null;
     }
   };
 
-  const deferred = (window as any).OneSignalDeferred;
-  if (Array.isArray(deferred)) {
-    deferred.push((oneSignal: any) => applyIdentity(oneSignal));
-    return;
-  }
+  const runSync = async () => {
+    const deferred = (window as any).OneSignalDeferred;
+    if (Array.isArray(deferred)) {
+      await new Promise<void>((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        };
 
-  const oneSignal = (window as any).OneSignal;
-  if (oneSignal) {
-    await applyIdentity(oneSignal);
-  }
+        const timeoutId = window.setTimeout(finish, 1800);
+        deferred.push(async (oneSignal: any) => {
+          window.clearTimeout(timeoutId);
+          await applyIdentity(oneSignal);
+          finish();
+        });
+      });
+      return;
+    }
+
+    const oneSignal = (window as any).OneSignal;
+    if (oneSignal) {
+      await applyIdentity(oneSignal);
+    }
+  };
+
+  oneSignalSyncInFlight = runSync();
+  await oneSignalSyncInFlight;
+  oneSignalSyncInFlight = null;
 };
 
 const viewOrder: Record<string, number> = {
@@ -238,12 +274,14 @@ const loadHomeView = () => {
   const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
   const usernameEl = document.getElementById('dashboard-username');
   const avatarEl = document.getElementById('dashboard-avatar');
+  const resolvedName = resolveProfileName(userSettings, currentAuthUser);
+  localStorage.setItem('username', resolvedName);
   
   if (usernameEl) {
-    usernameEl.textContent = userSettings.name || 'SaveIt';
+    usernameEl.textContent = resolvedName;
   }
-  if (avatarEl && userSettings.name) {
-    const initial = userSettings.name.charAt(0).toUpperCase();
+  if (avatarEl && resolvedName) {
+    const initial = resolvedName.charAt(0).toUpperCase();
     avatarEl.innerHTML = `<span class="dashboard-avatar-initial">${initial}</span>`;
     avatarEl.style.background = 'rgba(0, 229, 255, 0.24)';
   } else if (avatarEl) {
@@ -357,7 +395,8 @@ const populatePeriodSelect = () => {
 const loadStatsView = () => {
   const now = new Date();
   const statsAvatarEl = document.getElementById('stats-header-avatar');
-  const username = (localStorage.getItem('username') || 'SaveIt').trim();
+  const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+  const username = resolveProfileName(userSettings, currentAuthUser);
   statsSelectedYear = now.getFullYear();
   statsSelectedMonth = now.getMonth();
   statsCurrentTab = 'expenses';
@@ -987,7 +1026,8 @@ const setupStatsImportExport = () => {
 
 const loadBudgetsView = () => {
   const budgetsAvatarEl = document.getElementById('budgets-header-avatar');
-  const username = (localStorage.getItem('username') || 'SaveIt').trim();
+  const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+  const username = resolveProfileName(userSettings, currentAuthUser);
   if (budgetsAvatarEl) {
     budgetsAvatarEl.textContent = username ? username.charAt(0).toUpperCase() : '$';
   }
@@ -1468,6 +1508,10 @@ const setupSyncStatusIndicator = () => {
     }
 
     if (status === 'offline') {
+      if (!currentAuthUser) {
+        hide(0);
+        return;
+      }
       show('Sin conexión (modo local)', '#facc15');
       hide(2200);
       return;
@@ -1483,6 +1527,19 @@ const setupSyncStatusIndicator = () => {
 const loadProfileView = () => {
   loadUserSettings();
   updateAuthUi();
+};
+
+const resolveProfileName = (settings: { name?: string }, user: User | null): string => {
+  const fromSettings = settings?.name?.trim();
+  if (fromSettings) return fromSettings;
+
+  const fromAuth = user?.displayName?.trim();
+  if (fromAuth) return fromAuth;
+
+  const fromEmail = user?.email?.split('@')[0]?.trim();
+  if (fromEmail) return fromEmail;
+
+  return 'SaveIt User';
 };
 
 const getAuthCredentials = (): { email: string; password: string } => {
@@ -1556,9 +1613,16 @@ const updateAuthUi = () => {
   }
 
   const nameInput = document.getElementById('profile-name') as HTMLInputElement;
-  const resolvedName = (nameInput?.value || persistedSettings.name || currentAuthUser?.displayName || 'SaveIt User').trim();
+  const resolvedName = resolveProfileName(
+    { name: nameInput?.value || persistedSettings.name },
+    currentAuthUser,
+  );
+  if (nameInput) {
+    nameInput.value = resolvedName;
+  }
   const displayNameEl = document.getElementById('profile-display-name');
   if (displayNameEl) displayNameEl.textContent = resolvedName;
+  localStorage.setItem('username', resolvedName || 'SaveIt');
   updateProfileAvatar(resolvedName);
   void updateSubscriptionNotificationStatus();
   void updateNotificationsSheetActivationButton();
@@ -1629,13 +1693,25 @@ const loadUserSettings = () => {
   const displayNameEl = document.getElementById('profile-display-name');
   const memberSinceEl = document.getElementById('profile-member-since');
 
-  if (nameInput) nameInput.value = settings.name || '';
+  const resolvedName = resolveProfileName(settings, currentAuthUser);
+
+  if (!settings.name && resolvedName) {
+    localStorage.setItem('userSettings', JSON.stringify({
+      ...settings,
+      name: resolvedName,
+    }));
+  }
+  localStorage.setItem('username', resolvedName || 'SaveIt');
+
+  if (nameInput) {
+    nameInput.value = resolvedName;
+  }
+
   if (emailInput) {
     emailInput.value = currentAuthUser?.email || settings.email || '';
     emailInput.readOnly = Boolean(currentAuthUser);
   }
 
-  const resolvedName = settings.name || currentAuthUser?.displayName || 'SaveIt User';
   if (displayNameEl) {
     displayNameEl.textContent = resolvedName;
   }
@@ -1698,6 +1774,7 @@ const saveUserSettings = () => {
   };
 
   localStorage.setItem('userSettings', JSON.stringify(settings));
+  localStorage.setItem('username', settings.name || 'SaveIt');
   updateProfileAvatar(settings.name);
   showSnackbar('Perfil guardado', 'success');
 };

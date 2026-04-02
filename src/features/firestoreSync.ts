@@ -140,7 +140,7 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
   if (!uid) {
     currentSyncUid = null;
     syncDocRef = null;
-    emitSyncStatus('offline');
+    // Sin sesión no mostramos estado de sync remoto
     return;
   }
 
@@ -171,14 +171,18 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
     emitSyncStatus('syncing');
 
     // Asegura que el documento padre del usuario exista
-    await setDoc(
-      userDocRef,
-      {
-        uid,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true },
-    );
+    try {
+      await setDoc(
+        userDocRef,
+        {
+          uid,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+    } catch {
+      // Si rules bloquean el doc padre, continuamos con appData/main
+    }
 
     const snapshot = await getDoc(syncDocRef);
 
@@ -190,7 +194,7 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
 
     emitSyncStatus('synced');
   } catch {
-    emitSyncStatus('offline');
+    emitSyncStatus('error');
     // Si Firestore falla, app sigue funcionando local
   }
 };
