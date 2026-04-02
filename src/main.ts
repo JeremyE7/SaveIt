@@ -12,7 +12,7 @@ import { exportData, importData } from "./features/importExport";
 import { confirmDeleteIncome } from "./features/incomes";
 import { confirmDeleteSubscription, getAllSubscriptions, getNextChargeDate, getNotificationPermissionState, processSubscriptionsForToday, requestSubscriptionNotificationPermission, toggleSubscriptionStatus, upsertSubscription } from "./features/subscriptions";
 import { clearTrackedLocalData, initializeFirestoreSync } from "./features/firestoreSync";
-import { loginWithEmailPassword, logoutCurrentUser, registerWithEmailPassword, subscribeAuthState } from "./features/auth";
+import { changeCurrentUserPassword, loginWithEmailPassword, logoutCurrentUser, registerWithEmailPassword, subscribeAuthState } from "./features/auth";
 import { getNotificationCenterItems, getNotificationUnreadCount, markAllNotificationsAsRead } from "./features/notifications";
 import type { Expense } from "./types/Expense";
 import type { Income } from "./types/Income";
@@ -47,7 +47,7 @@ const initViewSwipe = () => {
 
   const handleTouchStart = (e: TouchEvent) => {
     const target = e.target as HTMLElement;
-    const isOnItem = target.closest('.expense-item');
+    const isOnItem = target.closest('.expense-item, .budget-item, .category-item');
     
     if (isOnItem) {
       ignoreViewSwipe = true;
@@ -107,12 +107,23 @@ const initViewSwipe = () => {
 const showView = (viewName: string) => {
   if (viewName === currentView) return;
 
+  const resetScrollPositionSmooth = (targetView?: HTMLElement | null) => {
+    const appContainer = document.querySelector('.app-container') as HTMLElement | null;
+
+    targetView?.scrollTo({ top: 0, behavior: 'smooth' });
+    appContainer?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const currentIndex = viewOrder[currentView] || 0;
   const newIndex = viewOrder[viewName] || 0;
   const direction = newIndex > currentIndex ? 'forward' : 'backward';
 
   const currentEl = document.getElementById(currentView + '-view');
   const newEl = document.getElementById(viewName + '-view');
+
+  // reset silencioso en la vista destino (aún oculta)
+  if (newEl) newEl.scrollTop = 0;
 
   if (direction === 'forward') {
     currentEl?.classList.add('view-slide-out-left');
@@ -137,6 +148,10 @@ const showView = (viewName: string) => {
     });
 
     currentView = viewName;
+
+    // reset suave al entrar a la nueva vista
+    resetScrollPositionSmooth(newEl);
+    requestAnimationFrame(() => resetScrollPositionSmooth(newEl));
   }, 300);
 
   document.querySelectorAll('.bottom-nav-item').forEach(item => {
@@ -215,10 +230,72 @@ const loadHomeView = () => {
 let statsSelectedYear: number;
 let statsSelectedMonth: number;
 let statsCurrentTab: 'expenses' | 'incomes' = 'expenses';
+let statsRangeMode: 'all' | 'month' | 'year' = 'month';
+let subscriptionsFilter: 'all' | ExpenseGroup = 'all';
 
 const getMonthName = (month: number): string => {
   const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   return months[month];
+};
+
+const formatMoney = (value: number): string => `$${value.toFixed(2)}`;
+
+const formatStatDate = (value: string): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short' });
+};
+
+const hexToRgba = (hex: string, alpha: number): string => {
+  const sanitized = hex.replace('#', '').trim();
+  if (![3, 6].includes(sanitized.length)) return `rgba(132, 147, 150, ${alpha})`;
+  const normalized = sanitized.length === 3
+    ? sanitized.split('').map((char) => `${char}${char}`).join('')
+    : sanitized;
+
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const getStatsCategoryMeta = (category: string, type: 'expenses' | 'incomes'): { label: string; color: string } => {
+  if (category.startsWith('custom_')) {
+    const categoryId = category.replace('custom_', '');
+    const customCategories = getCustomCategories();
+    const customCat = customCategories.find((c) => c.id === categoryId && c.type === (type === 'expenses' ? 'expense' : 'income'));
+    if (customCat) return { label: customCat.name, color: customCat.color };
+  }
+
+  if (type === 'expenses') {
+    const group = expenseGroups[category as ExpenseGroup];
+    return {
+      label: group?.label || category,
+      color: group?.color || '#849396',
+    };
+  }
+
+  const income = incomeCategories[category as IncomeCategory];
+  return {
+    label: income?.label || category,
+    color: income?.color || '#849396',
+  };
+};
+
+const getAvailableStatsYears = (): number[] => {
+  const allDates = [...getAllExpenses().map((e) => e.date), ...getAllIncomes().map((i) => i.date)];
+  const years = new Set<number>();
+
+  allDates.forEach((dateValue) => {
+    const parsed = new Date(dateValue);
+    if (!Number.isNaN(parsed.getTime())) {
+      years.add(parsed.getFullYear());
+    }
+  });
+
+  years.add(new Date().getFullYear());
+
+  return Array.from(years).sort((a, b) => b - a);
 };
 
 const populatePeriodSelect = () => {
@@ -250,14 +327,24 @@ const populatePeriodSelect = () => {
 
 const loadStatsView = () => {
   const now = new Date();
+  const statsAvatarEl = document.getElementById('stats-header-avatar');
+  const username = (localStorage.getItem('username') || 'SaveIt').trim();
   statsSelectedYear = now.getFullYear();
   statsSelectedMonth = now.getMonth();
   statsCurrentTab = 'expenses';
+  statsRangeMode = 'month';
+
+  if (statsAvatarEl) {
+    statsAvatarEl.textContent = username ? username.charAt(0).toUpperCase() : '$';
+  }
 
   populatePeriodSelect();
   populateCategoryFilter();
+  setupStatsRangeToggle();
+  applyStatsRangeMode(statsRangeMode);
   updateStatsCards();
   loadStatsExpenses();
+  renderStatsDistribution();
   setupStatsTabs();
   setupStatsFilters();
   setupStatsPeriodNavigation();
@@ -280,18 +367,40 @@ const updateStatsCards = () => {
     totalSpent = getMonthTotal(year, month);
   }
 
-  const balance = totalIncome - totalSpent;
-
   const incomeEl = document.getElementById('stats-total-income');
   const spentEl = document.getElementById('stats-total-spent');
   const balanceEl = document.getElementById('stats-balance');
+  const spentTrendEl = document.getElementById('stats-spent-trend');
+  const incomeTrendEl = document.getElementById('stats-income-trend');
 
-  if (incomeEl) incomeEl.textContent = `$${totalIncome.toFixed(2)}`;
-  if (spentEl) spentEl.textContent = `$${totalSpent.toFixed(2)}`;
+  let previousIncome = 0;
+  let previousSpent = 0;
+
+  if (value && value !== 'all') {
+    const [year, month] = value.split('-').map(Number);
+    const prevDate = new Date(year, month - 1, 1);
+    previousIncome = getIncomeMonthTotal(prevDate.getFullYear(), prevDate.getMonth());
+    previousSpent = getMonthTotal(prevDate.getFullYear(), prevDate.getMonth());
+  } else {
+    const now = new Date();
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    previousIncome = getIncomeMonthTotal(prevDate.getFullYear(), prevDate.getMonth());
+    previousSpent = getMonthTotal(prevDate.getFullYear(), prevDate.getMonth());
+  }
+
+  const incomeDelta = previousIncome > 0 ? ((totalIncome - previousIncome) / previousIncome) * 100 : 0;
+  const spentDelta = previousSpent > 0 ? ((totalSpent - previousSpent) / previousSpent) * 100 : 0;
+
+  if (incomeEl) incomeEl.textContent = formatMoney(totalIncome);
+  if (spentEl) spentEl.textContent = formatMoney(totalSpent);
   if (balanceEl) {
+    const balance = totalIncome - totalSpent;
     balanceEl.textContent = balance >= 0 ? `+$${balance.toFixed(2)}` : `-$${Math.abs(balance).toFixed(2)}`;
     balanceEl.className = balance >= 0 ? 'stat-card-value income' : 'stat-card-value expense';
   }
+
+  if (spentTrendEl) spentTrendEl.textContent = `${Math.abs(spentDelta).toFixed(0)}% vs mes ant.`;
+  if (incomeTrendEl) incomeTrendEl.textContent = `${Math.abs(incomeDelta).toFixed(0)}% vs mes ant.`;
 };
 
 const populateCategoryFilter = (type: 'expenses' | 'incomes' = 'expenses') => {
@@ -321,6 +430,178 @@ const populateCategoryFilter = (type: 'expenses' | 'incomes' = 'expenses') => {
   }
 
   select.innerHTML = `<option value="">Todas las ${type === 'expenses' ? 'categorías' : 'fuentes'}</option>${options}`;
+};
+
+const updateStatsControlLabels = () => {
+  const periodChipLabel = document.getElementById('stats-period-chip-label');
+  const periodChip = document.getElementById('stats-period-chip');
+  const periodSelect = document.getElementById('stats-period-select') as HTMLSelectElement;
+  const prevBtn = document.getElementById('btn-prev-period') as HTMLButtonElement;
+  const nextBtn = document.getElementById('btn-next-period') as HTMLButtonElement;
+
+  if (periodChipLabel && periodSelect) {
+    if (statsRangeMode === 'all') {
+      periodChipLabel.textContent = 'Todo el historial';
+    } else if (statsRangeMode === 'year') {
+      periodChipLabel.textContent = `Año ${statsSelectedYear}`;
+    } else {
+      const [year, month] = periodSelect.value?.split('-').map(Number) || [new Date().getFullYear(), new Date().getMonth()];
+      periodChipLabel.textContent = `${getMonthName(month)} ${year}`;
+    }
+  }
+
+  if (periodChip) {
+    periodChip.classList.toggle('active', statsRangeMode !== 'month');
+  }
+
+  if (prevBtn && nextBtn && periodSelect) {
+    if (statsRangeMode === 'month') {
+      const monthOptions = Array.from(periodSelect.options).filter((o) => o.value !== 'all');
+      const currentMonthIndex = monthOptions.findIndex((o) => o.value === periodSelect.value);
+      prevBtn.disabled = currentMonthIndex >= monthOptions.length - 1;
+      nextBtn.disabled = currentMonthIndex <= 0;
+    } else if (statsRangeMode === 'year') {
+      const years = getAvailableStatsYears();
+      const currentIndex = years.findIndex((year) => year === statsSelectedYear);
+      prevBtn.disabled = currentIndex >= years.length - 1;
+      nextBtn.disabled = currentIndex <= 0;
+    } else {
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+    }
+  }
+
+  const rangeButtons = [
+    { id: 'stats-range-all', mode: 'all' },
+    { id: 'stats-range-month', mode: 'month' },
+    { id: 'stats-range-year', mode: 'year' },
+  ] as const;
+
+  rangeButtons.forEach((entry) => {
+    const button = document.getElementById(entry.id);
+    if (!button) return;
+    button.classList.toggle('active', statsRangeMode === entry.mode);
+  });
+};
+
+const applyStatsRangeMode = (mode: 'all' | 'month' | 'year') => {
+  statsRangeMode = mode;
+
+  const periodSelect = document.getElementById('stats-period-select') as HTMLSelectElement;
+  const dateStart = document.getElementById('stats-filter-date-start') as HTMLInputElement;
+  const dateEnd = document.getElementById('stats-filter-date-end') as HTMLInputElement;
+  const now = new Date();
+
+  if (!periodSelect || !dateStart || !dateEnd) return;
+
+  if (mode === 'all') {
+    periodSelect.value = 'all';
+    dateStart.value = '';
+    dateEnd.value = '';
+  } else if (mode === 'year') {
+    statsSelectedYear = now.getFullYear();
+    periodSelect.value = 'all';
+    dateStart.value = `${statsSelectedYear}-01-01`;
+    dateEnd.value = `${statsSelectedYear}-12-31`;
+  } else {
+    periodSelect.value = `${now.getFullYear()}-${now.getMonth()}`;
+    dateStart.value = '';
+    dateEnd.value = '';
+  }
+
+  updateStatsControlLabels();
+};
+
+const setupStatsRangeToggle = () => {
+  const allBtn = document.getElementById('stats-range-all');
+  const monthBtn = document.getElementById('stats-range-month');
+  const yearBtn = document.getElementById('stats-range-year');
+
+  allBtn?.addEventListener('click', () => {
+    applyStatsRangeMode('all');
+    updateStatsCards();
+    if (statsCurrentTab === 'expenses') loadStatsExpenses(); else loadStatsIncomes();
+    renderStatsDistribution();
+  });
+
+  monthBtn?.addEventListener('click', () => {
+    applyStatsRangeMode('month');
+    updateStatsCards();
+    if (statsCurrentTab === 'expenses') loadStatsExpenses(); else loadStatsIncomes();
+    renderStatsDistribution();
+  });
+
+  yearBtn?.addEventListener('click', () => {
+    applyStatsRangeMode('year');
+    updateStatsCards();
+    if (statsCurrentTab === 'expenses') loadStatsExpenses(); else loadStatsIncomes();
+    renderStatsDistribution();
+  });
+
+  updateStatsControlLabels();
+};
+
+const renderStatsDistribution = () => {
+  const donut = document.getElementById('stats-distribution-donut');
+  const percentageEl = document.getElementById('stats-distribution-main-percentage');
+  const labelEl = document.getElementById('stats-distribution-main-label');
+  const legendEl = document.getElementById('stats-distribution-legend');
+
+  if (!donut || !percentageEl || !labelEl || !legendEl) return;
+
+  const records = statsCurrentTab === 'expenses' ? getFilteredExpenses() : getFilteredIncomes();
+
+  if (records.length === 0) {
+    donut.setAttribute('style', 'background: conic-gradient(var(--color-bg-elevated) 0deg 360deg);');
+    percentageEl.textContent = '0%';
+    labelEl.textContent = 'Sin datos';
+    legendEl.innerHTML = '<p class="stats-legend-value">No hay movimientos para este filtro.</p>';
+    return;
+  }
+
+  const totals = new Map<string, number>();
+  records.forEach((record) => {
+    const current = totals.get(record.category) || 0;
+    totals.set(record.category, current + record.amount);
+  });
+
+  const sorted = Array.from(totals.entries())
+    .map(([category, amount]) => ({
+      category,
+      amount,
+      ...getStatsCategoryMeta(category, statsCurrentTab),
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 4);
+
+  const grandTotal = sorted.reduce((sum, item) => sum + item.amount, 0);
+  if (grandTotal <= 0) return;
+
+  let angle = 0;
+  const segments = sorted.map((item) => {
+    const sweep = (item.amount / grandTotal) * 360;
+    const start = angle;
+    const end = angle + sweep;
+    angle = end;
+    return `${hexToRgba(item.color, 0.7)} ${start}deg ${end}deg`;
+  });
+
+  donut.setAttribute('style', `background: conic-gradient(${segments.join(', ')});`);
+
+  const top = sorted[0];
+  const topPercentage = (top.amount / grandTotal) * 100;
+  percentageEl.textContent = `${topPercentage.toFixed(0)}%`;
+  labelEl.textContent = top.label;
+
+  legendEl.innerHTML = sorted.map((item) => `
+    <div class="stats-legend-item">
+      <span class="stats-legend-dot" style="background:${hexToRgba(item.color, 0.8)}"></span>
+      <div>
+        <p class="stats-legend-name">${item.label}</p>
+        <p class="stats-legend-value">${formatMoney(item.amount)}</p>
+      </div>
+    </div>
+  `).join('');
 };
 
 const getFilteredExpenses = (): Expense[] => {
@@ -419,9 +700,10 @@ const loadStatsExpenses = () => {
       const subscriptionBadge = expense.source === 'subscription'
         ? '<span class="transaction-source-badge">Suscripción</span>'
         : '';
+      const expenseDateText = formatStatDate(expense.date);
 
       return `
-        <div class="expense-item" data-id="${expense.id}">
+        <div class="expense-item stats-transaction-item" data-id="${expense.id}">
           <div class="expense-item-left">
             <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
               <span class="material-symbols-outlined" style="font-size: 20px;">${catIcon}</span>
@@ -435,6 +717,7 @@ const loadStatsExpenses = () => {
                 <span class="badge-dot" style="background: ${catColor};"></span>
                 ${cat?.label || expense.category}
               </div>
+              <p class="stats-transaction-meta">${expenseDateText}</p>
             </div>
           </div>
           <div class="expense-item-amount">-$${expense.amount.toFixed(2)}</div>
@@ -497,8 +780,9 @@ const loadStatsIncomes = () => {
       }
 
       const catColor = cat?.color || '#22c55e';
+      const incomeDateText = formatStatDate(income.date);
       return `
-        <div class="expense-item" data-id="${income.id}">
+        <div class="expense-item stats-transaction-item" data-id="${income.id}">
           <div class="expense-item-left">
             <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
               <span class="material-symbols-outlined" style="font-size: 20px;">${catIcon}</span>
@@ -509,6 +793,7 @@ const loadStatsIncomes = () => {
                 <span class="badge-dot" style="background: ${catColor};"></span>
                 ${cat?.label || income.category}
               </div>
+              <p class="stats-transaction-meta">${incomeDateText}</p>
             </div>
           </div>
           <div class="expense-item-amount income">+$${income.amount.toFixed(2)}</div>
@@ -552,6 +837,7 @@ const setupStatsTabs = () => {
       tab.classList.add('active');
 
       populateCategoryFilter(tabName);
+      updateStatsControlLabels();
 
       if (expensesList && incomesList) {
         if (tabName === 'expenses') {
@@ -564,6 +850,8 @@ const setupStatsTabs = () => {
           loadStatsIncomes();
         }
       }
+
+      renderStatsDistribution();
     });
   });
 };
@@ -581,6 +869,8 @@ const setupStatsFilters = () => {
     } else {
       loadStatsIncomes();
     }
+    updateStatsControlLabels();
+    renderStatsDistribution();
   };
 
   dateStart?.addEventListener('change', applyFilters);
@@ -593,17 +883,41 @@ const setupStatsPeriodNavigation = () => {
   const prevBtn = document.getElementById('btn-prev-period');
   const nextBtn = document.getElementById('btn-next-period');
   const select = document.getElementById('stats-period-select') as HTMLSelectElement;
+  const dateStart = document.getElementById('stats-filter-date-start') as HTMLInputElement;
+  const dateEnd = document.getElementById('stats-filter-date-end') as HTMLInputElement;
 
   const navigatePeriod = (direction: 'prev' | 'next') => {
     if (!select) return;
-    
-    const options = Array.from(select.options);
-    const currentIndex = options.findIndex(o => o.value === select.value);
 
-    if (direction === 'prev' && currentIndex > 0) {
-      select.selectedIndex = currentIndex - 1;
-    } else if (direction === 'next' && currentIndex < options.length - 1) {
-      select.selectedIndex = currentIndex + 1;
+    if (statsRangeMode === 'all') {
+      return;
+    }
+
+    if (statsRangeMode === 'month') {
+      const monthOptions = Array.from(select.options).filter((o) => o.value !== 'all');
+      const currentIndex = monthOptions.findIndex((o) => o.value === select.value);
+      if (currentIndex === -1) return;
+
+      if (direction === 'prev' && currentIndex < monthOptions.length - 1) {
+        select.value = monthOptions[currentIndex + 1].value;
+      } else if (direction === 'next' && currentIndex > 0) {
+        select.value = monthOptions[currentIndex - 1].value;
+      }
+    }
+
+    if (statsRangeMode === 'year' && dateStart && dateEnd) {
+      const years = getAvailableStatsYears();
+      const currentIndex = years.findIndex((year) => year === statsSelectedYear);
+      if (currentIndex === -1) return;
+
+      if (direction === 'prev' && currentIndex < years.length - 1) {
+        statsSelectedYear = years[currentIndex + 1];
+      } else if (direction === 'next' && currentIndex > 0) {
+        statsSelectedYear = years[currentIndex - 1];
+      }
+
+      dateStart.value = `${statsSelectedYear}-01-01`;
+      dateEnd.value = `${statsSelectedYear}-12-31`;
     }
 
     updateStatsCards();
@@ -612,6 +926,8 @@ const setupStatsPeriodNavigation = () => {
     } else {
       loadStatsIncomes();
     }
+    updateStatsControlLabels();
+    renderStatsDistribution();
   };
 
   prevBtn?.addEventListener('click', () => navigatePeriod('prev'));
@@ -641,6 +957,12 @@ const setupStatsImportExport = () => {
 };
 
 const loadBudgetsView = () => {
+  const budgetsAvatarEl = document.getElementById('budgets-header-avatar');
+  const username = (localStorage.getItem('username') || 'SaveIt').trim();
+  if (budgetsAvatarEl) {
+    budgetsAvatarEl.textContent = username ? username.charAt(0).toUpperCase() : '$';
+  }
+
   renderBudgetsList();
 };
 
@@ -719,51 +1041,119 @@ const openSubscriptionSheet = (subscription?: Subscription) => {
 
 const renderSubscriptionsList = () => {
   const container = document.getElementById('subscriptions-list');
+  const banner = document.getElementById('subscriptions-upcoming-banner');
+  const chips = document.getElementById('subscriptions-category-chips');
   if (!container) return;
 
   const subscriptions = getAllSubscriptions();
+  const activeSubscriptions = subscriptions.filter((entry) => entry.status === 'active');
 
-  if (subscriptions.length === 0) {
+  if (banner) {
+    const upcomingWeek = activeSubscriptions.filter((entry) => {
+      const nextDate = getNextChargeDate(entry);
+      const now = new Date();
+      const diffMs = nextDate.getTime() - now.getTime();
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+      return diffDays >= 0 && diffDays <= 7;
+    });
+
+    const totalWeek = upcomingWeek.reduce((sum, entry) => sum + entry.amount, 0);
+    const renewalText = upcomingWeek.length === 1 ? 'renovación' : 'renovaciones';
+    const bannerMessage = upcomingWeek.length === 0
+      ? 'No tienes renovaciones en los próximos 7 días.'
+      : `Tienes ${upcomingWeek.length} ${renewalText} esta semana. Total estimado: <strong>$${totalWeek.toFixed(2)}</strong>`;
+
+    banner.innerHTML = `
+      <div class="subscriptions-upcoming-glow" aria-hidden="true"></div>
+      <div class="subscriptions-banner-icon-wrap">
+        <span class="material-symbols-outlined">notifications_active</span>
+      </div>
+      <div class="subscriptions-banner-copy">
+        <p class="subscriptions-banner-title">Próximos cobros</p>
+        <p class="subscriptions-banner-text">${bannerMessage}</p>
+      </div>
+    `;
+  }
+
+  if (chips) {
+    const categoryCounts = (Object.keys(expenseGroups) as ExpenseGroup[])
+      .map((key) => ({
+        key,
+        label: expenseGroups[key].label,
+        count: subscriptions.filter((entry) => entry.category === key).length,
+      }))
+      .filter((entry) => entry.count > 0);
+
+    chips.innerHTML = [
+      `<button class="subscriptions-chip ${subscriptionsFilter === 'all' ? 'active' : ''}" data-filter="all">Todas</button>`,
+      ...categoryCounts.map((entry) => `
+        <button class="subscriptions-chip ${subscriptionsFilter === entry.key ? 'active' : ''}" data-filter="${entry.key}">${entry.label}</button>
+      `),
+    ].join('');
+
+    chips.querySelectorAll<HTMLButtonElement>('.subscriptions-chip').forEach((button) => {
+      button.addEventListener('click', () => {
+        const nextFilter = (button.dataset.filter || 'all') as 'all' | ExpenseGroup;
+        subscriptionsFilter = nextFilter;
+        renderSubscriptionsList();
+      });
+    });
+  }
+
+  const filteredSubscriptions = subscriptionsFilter === 'all'
+    ? subscriptions
+    : subscriptions.filter((entry) => entry.category === subscriptionsFilter);
+
+  if (filteredSubscriptions.length === 0) {
     container.innerHTML = `
-      <div class="expense-empty">
-        <div class="expense-empty-icon">🔁</div>
-        <p>No tienes suscripciones</p>
-        <small>Crea una suscripción para automatizar gastos mensuales.</small>
+      <div class="expense-empty subscriptions-empty">
+        <span class="material-symbols-outlined">receipt_long</span>
+        <p>Sin suscripciones</p>
+        <small>Aún no has registrado pagos recurrentes para este filtro.</small>
       </div>
     `;
     return;
   }
 
-  container.innerHTML = subscriptions.map((subscription) => {
+  container.innerHTML = filteredSubscriptions.map((subscription) => {
     const category = expenseGroups[subscription.category];
-    const nextCharge = getNextChargeDate(subscription).toLocaleDateString('es-EC', {
+    const nextChargeDate = getNextChargeDate(subscription);
+    const nextCharge = nextChargeDate.toLocaleDateString('es-EC', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
 
+    const amountClass = subscription.status === 'active' ? 'active' : 'cancelled';
+    const statusText = subscription.status === 'active' ? 'ACTIVA' : 'CANCELADA';
+    const statusClass = subscription.status === 'active' ? 'active' : 'cancelled';
+    const nextChargeText = subscription.status === 'active'
+      ? `Próximo: ${nextCharge}`
+      : 'Cancelada';
+
     return `
-      <div class="expense-item" data-subscription-id="${subscription.id}">
-        <div class="expense-item-left">
-          <div class="expense-item-icon" style="background: ${category.color}20; color: ${category.color};">
-            <span class="material-symbols-outlined" style="font-size: 20px;">${category.icon}</span>
-          </div>
-          <div class="expense-item-details">
-            <div class="expense-item-title-row">
-              <p class="expense-item-title">${subscription.name}</p>
-            </div>
-            <div class="expense-item-category-badge">
-              <span class="badge-dot" style="background: ${category.color};"></span>
-              ${category.label} · Día ${subscription.billingDay}
-            </div>
-            <div class="subscription-meta">
-              <span class="subscription-status ${subscription.status}">${subscription.status === 'active' ? 'ACTIVA' : 'CANCELADA'}</span>
-              <span class="subscription-next-charge">Próximo cobro: ${nextCharge}</span>
-            </div>
-          </div>
+      <div class="subscription-card ${subscription.status === 'cancelled' ? 'cancelled' : ''} expense-item" data-subscription-id="${subscription.id}">
+        <div class="subscription-card-icon" style="background: var(--color-bg-secondary); color: ${category.color};">
+          <span class="material-symbols-outlined">${category.icon}</span>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-          <div class="expense-item-amount">-$${subscription.amount.toFixed(2)}</div>
+        <div class="subscription-card-content">
+          <div class="subscription-card-top">
+            <p class="subscription-card-title">${subscription.name}</p>
+            <p class="subscription-card-amount ${amountClass}">-$${subscription.amount.toFixed(2)}</p>
+          </div>
+
+          <div class="subscription-card-tags">
+            <span class="subscription-card-category">${category.label}</span>
+            <span class="subscription-card-day">Día ${subscription.billingDay}</span>
+          </div>
+
+          <div class="subscription-card-bottom">
+            <span class="subscription-next-charge">${nextChargeText}</span>
+            <span class="subscription-status ${statusClass}">
+              <span class="subscription-status-dot"></span>
+              ${statusText}
+            </span>
+          </div>
         </div>
       </div>
     `;
@@ -860,6 +1250,7 @@ const handleSaveSubscription = () => {
 };
 
 const loadSubscriptionsView = () => {
+  subscriptionsFilter = 'all';
   updateSubscriptionNotificationStatus();
   renderSubscriptionsList();
 };
@@ -978,8 +1369,6 @@ const setupSyncStatusIndicator = () => {
 const loadProfileView = () => {
   loadUserSettings();
   updateAuthUi();
-  loadCategoriesList();
-  setupProfileTabs();
 };
 
 const getAuthCredentials = (): { email: string; password: string } => {
@@ -1002,6 +1391,8 @@ const updateAuthUi = () => {
   const registerBtn = document.getElementById('btn-auth-register') as HTMLButtonElement;
   const logoutBtn = document.getElementById('btn-auth-logout') as HTMLButtonElement;
   const profileEmailInput = document.getElementById('profile-email') as HTMLInputElement;
+  const profileSyncIndicator = document.getElementById('profile-sync-indicator');
+  const persistedSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
 
   if (authStatus) {
     if (currentAuthUser) {
@@ -1016,6 +1407,12 @@ const updateAuthUi = () => {
   if (authSessionEmail) {
     authSessionEmail.textContent = currentAuthUser?.email ? `Conectado como ${currentAuthUser.email}` : '';
     authSessionEmail.style.display = currentAuthUser ? 'block' : 'none';
+  }
+
+  if (profileSyncIndicator) {
+    profileSyncIndicator.textContent = currentAuthUser
+      ? 'Sesión activa: perfil sincronizado. Ajustes visuales también se guardan localmente.'
+      : 'Sin sesión: tus ajustes se guardan solo en este dispositivo.';
   }
 
   if (credentialsGroup) {
@@ -1040,9 +1437,15 @@ const updateAuthUi = () => {
   }
 
   if (profileEmailInput) {
-    profileEmailInput.value = currentAuthUser?.email || profileEmailInput.value;
+    profileEmailInput.value = currentAuthUser?.email || persistedSettings.email || '';
     profileEmailInput.readOnly = Boolean(currentAuthUser);
   }
+
+  const nameInput = document.getElementById('profile-name') as HTMLInputElement;
+  const resolvedName = (nameInput?.value || persistedSettings.name || currentAuthUser?.displayName || 'SaveIt User').trim();
+  const displayNameEl = document.getElementById('profile-display-name');
+  if (displayNameEl) displayNameEl.textContent = resolvedName;
+  updateProfileAvatar(resolvedName);
 };
 
 const setupAuthStateSync = async (): Promise<void> => {
@@ -1065,6 +1468,9 @@ const setupAuthStateSync = async (): Promise<void> => {
       lastAuthUid = user?.uid || null;
 
       loadHomeView();
+      if (currentView === 'profile') {
+        loadProfileView();
+      }
       if (currentView === 'stats') {
         updateStatsCards();
         if (statsCurrentTab === 'expenses') {
@@ -1102,26 +1508,64 @@ const loadUserSettings = () => {
   const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
   const nameInput = document.getElementById('profile-name') as HTMLInputElement;
   const emailInput = document.getElementById('profile-email') as HTMLInputElement;
+  const displayNameEl = document.getElementById('profile-display-name');
+  const memberSinceEl = document.getElementById('profile-member-since');
 
   if (nameInput) nameInput.value = settings.name || '';
   if (emailInput) {
     emailInput.value = currentAuthUser?.email || settings.email || '';
     emailInput.readOnly = Boolean(currentAuthUser);
   }
-  updateProfileAvatar(settings.name || '');
+
+  const resolvedName = settings.name || currentAuthUser?.displayName || 'SaveIt User';
+  if (displayNameEl) {
+    displayNameEl.textContent = resolvedName;
+  }
+
+  const memberSinceRaw = settings.memberSince || localStorage.getItem('profileMemberSince') || new Date().toISOString();
+  if (!settings.memberSince) {
+    const updatedSettings = { ...settings, memberSince: memberSinceRaw };
+    localStorage.setItem('userSettings', JSON.stringify(updatedSettings));
+    localStorage.setItem('profileMemberSince', memberSinceRaw);
+  }
+
+  const memberSinceDate = new Date(memberSinceRaw);
+  const memberSinceText = Number.isNaN(memberSinceDate.getTime())
+    ? 'Miembro desde Enero 2024'
+    : `Miembro desde ${memberSinceDate.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' })}`;
+
+  if (memberSinceEl) {
+    memberSinceEl.innerHTML = `<span class="material-symbols-outlined">calendar_today</span>${memberSinceText}`;
+  }
+
+  updateProfileAvatar(resolvedName);
 };
 
 const updateProfileAvatar = (name: string) => {
   const avatarEl = document.getElementById('profile-avatar');
-  if (!avatarEl) return;
+  const headerAvatarEl = document.getElementById('profile-header-avatar');
+  if (!avatarEl && !headerAvatarEl) return;
+
+  const applyHeaderFallback = () => {
+    if (!headerAvatarEl) return;
+    headerAvatarEl.textContent = 'S';
+  };
 
   if (name.trim()) {
     const initial = name.charAt(0).toUpperCase();
-    avatarEl.innerHTML = `<span class="profile-avatar-initial">${initial}</span>`;
-    avatarEl.style.background = '#30c9e8';
+    if (avatarEl) {
+      avatarEl.innerHTML = `<span class="profile-avatar-initial">${initial}</span>`;
+      avatarEl.style.background = '#30c9e8';
+    }
+    if (headerAvatarEl) {
+      headerAvatarEl.textContent = initial;
+    }
   } else {
-    avatarEl.innerHTML = '<span class="material-symbols-outlined">account_circle</span>';
-    avatarEl.style.background = '';
+    if (avatarEl) {
+      avatarEl.innerHTML = '<span class="material-symbols-outlined">account_circle</span>';
+      avatarEl.style.background = '';
+    }
+    applyHeaderFallback();
   }
 };
 
@@ -1140,6 +1584,63 @@ const saveUserSettings = () => {
   showSnackbar('Perfil guardado', 'success');
 };
 
+const openPasswordSheet = () => {
+  const overlay = document.getElementById('password-sheet-overlay');
+  const currentInput = document.getElementById('current-password') as HTMLInputElement;
+  const newInput = document.getElementById('new-password') as HTMLInputElement;
+  const confirmInput = document.getElementById('confirm-password') as HTMLInputElement;
+
+  if (currentInput) currentInput.value = '';
+  if (newInput) newInput.value = '';
+  if (confirmInput) confirmInput.value = '';
+
+  overlay?.classList.add('active');
+};
+
+const closePasswordSheet = () => {
+  const overlay = document.getElementById('password-sheet-overlay');
+  overlay?.classList.remove('active');
+};
+
+const handleChangePassword = async () => {
+  const currentInput = document.getElementById('current-password') as HTMLInputElement;
+  const newInput = document.getElementById('new-password') as HTMLInputElement;
+  const confirmInput = document.getElementById('confirm-password') as HTMLInputElement;
+
+  const currentPassword = currentInput?.value?.trim() || '';
+  const newPassword = newInput?.value?.trim() || '';
+  const confirmPassword = confirmInput?.value?.trim() || '';
+
+  if (!currentAuthUser) {
+    showSnackbar('Debes iniciar sesión para cambiar contraseña', 'warning');
+    return;
+  }
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    showSnackbar('Completa todos los campos', 'warning');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    showSnackbar('La nueva contraseña debe tener al menos 6 caracteres', 'warning');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    showSnackbar('Las contraseñas no coinciden', 'warning');
+    return;
+  }
+
+  try {
+    await changeCurrentUserPassword(currentPassword, newPassword);
+    closePasswordSheet();
+    showSnackbar('Contraseña actualizada', 'success');
+  } catch (error) {
+    const err = error as { code?: string; message?: string };
+    showSnackbar(getReadableAuthError(err.code || err.message || ''), 'error');
+  }
+};
+
 export const getCustomCategories = (): Array<{id: string; name: string; icon: string; color: string; type: 'expense' | 'income'}> => {
   return JSON.parse(localStorage.getItem('customCategories') || '[]');
 };
@@ -1153,11 +1654,13 @@ const loadCategoriesList = () => {
   if (!container) return;
 
   const customCategories = getCustomCategories();
+  const expenses = getAllExpenses();
+  const incomes = getAllIncomes();
 
   if (customCategories.length === 0) {
     container.innerHTML = `
-      <div class="expense-empty">
-        <span class="material-symbols-outlined" style="font-size: 48px; opacity: 0.3;">category</span>
+      <div class="expense-empty profile-categories-empty">
+        <span class="material-symbols-outlined" style="font-size: 42px; opacity: 0.3;">category</span>
         <p>No hay categorías personalizadas</p>
         <small>Agrega categorías para organizar tus gastos</small>
       </div>
@@ -1165,16 +1668,36 @@ const loadCategoriesList = () => {
     return;
   }
 
-  container.innerHTML = customCategories.map(cat => `
-    <div class="category-item" data-id="${cat.id}">
+  container.innerHTML = customCategories.map(cat => {
+    const relatedExpenses = cat.type === 'expense'
+      ? expenses.filter((expense) => expense.category === `custom_${cat.id}` || expense.category === cat.id).length
+      : incomes.filter((income) => income.category === `custom_${cat.id}` || income.category === cat.id).length;
+
+    return `
+    <div class="category-item profile-category-item" data-id="${cat.id}">
       <div class="category-item-left">
-        <div class="category-item-icon" style="background: ${cat.color}20; color: ${cat.color};">
+        <div class="category-item-icon" style="background: ${cat.color}1A; color: ${cat.color};">
           <span class="material-symbols-outlined">${cat.icon}</span>
         </div>
-        <span class="category-item-name">${cat.name}</span>
+        <div>
+          <p class="category-item-name">${cat.name}</p>
+          <p class="profile-category-meta">${relatedExpenses} transacciones este mes</p>
+        </div>
       </div>
+      <button class="profile-category-edit" type="button" aria-label="Editar categoría ${cat.name}">
+        <span class="material-symbols-outlined">edit</span>
+      </button>
     </div>
-  `).join('');
+  `;
+  }).join('');
+
+  container.querySelectorAll<HTMLButtonElement>('.profile-category-edit').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const id = (button.closest('.category-item') as HTMLElement | null)?.dataset.id;
+      if (id) editCategory(id);
+    });
+  });
 
   container.querySelectorAll('.category-item').forEach(item => {
     const category = customCategories.find(c => c.id === (item as HTMLElement).dataset.id);
@@ -1404,29 +1927,6 @@ const deleteCategory = (id: string) => {
   });
 };
 
-const setupProfileTabs = () => {
-  const tabs = document.querySelectorAll('.profile-tab');
-  const userSection = document.getElementById('profile-user-section');
-  const categoriesSection = document.getElementById('profile-categories-section');
-
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const tabName = tab.getAttribute('data-tab');
-
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      if (tabName === 'user' && userSection && categoriesSection) {
-        userSection.classList.remove('hidden');
-        categoriesSection.classList.add('hidden');
-      } else if (tabName === 'categories' && userSection && categoriesSection) {
-        userSection.classList.add('hidden');
-        categoriesSection.classList.remove('hidden');
-      }
-    });
-  });
-};
-
 const getCategoryIcon = (category: string): string => {
   const iconMap: Record<string, string> = {
     food_home: 'local_grocery_store',
@@ -1481,7 +1981,7 @@ const renderCategoryBar = () => {
           <span class="home-category-progress-value">${s.percentage.toFixed(0)}%</span>
         </div>
         <div class="home-category-progress-track">
-          <span class="home-category-progress-fill" style="width: ${Math.min(s.percentage, 100)}%; background: ${s.color};"></span>
+          <span class="home-category-progress-fill" style="width: ${Math.min(s.percentage, 100)}%; --category-color: ${s.color};"></span>
         </div>
       </div>
     `).join('');
@@ -1787,17 +2287,12 @@ const clearExpenseForm = () => {
 const loadCategorySelect = () => {
   const select = document.getElementById('expense-category') as HTMLSelectElement;
   const budgetSelect = document.getElementById('budget-category') as HTMLSelectElement;
-  const customCategories = getCustomCategories();
-  const customExpenseCategories = customCategories.filter(c => c.type === 'expense');
 
   if (select) {
     const defaultOptions = Object.entries(expenseGroups)
       .map(([key, group]) => `<option value="${key}">${group.label}</option>`)
       .join('');
-    const customOptions = customExpenseCategories
-      .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
-      .join('');
-    select.innerHTML = defaultOptions + customOptions;
+    select.innerHTML = defaultOptions;
   }
 
   // Budget select is no longer used for manual budget entry
@@ -1810,17 +2305,12 @@ const loadCategorySelect = () => {
 
 const loadIncomeCategorySelect = () => {
   const select = document.getElementById('income-category') as HTMLSelectElement;
-  const customCategories = getCustomCategories();
-  const customIncomeCategories = customCategories.filter(c => c.type === 'income');
 
   if (select) {
     const defaultOptions = Object.entries(incomeCategories)
       .map(([key, cat]) => `<option value="${key}">${cat.label}</option>`)
       .join('');
-    const customOptions = customIncomeCategories
-      .map(cat => `<option value="custom_${cat.id}">${cat.name} (Personalizado)</option>`)
-      .join('');
-    select.innerHTML = '<option value="">Selecciona una opción</option>' + defaultOptions + customOptions;
+    select.innerHTML = '<option value="">Selecciona una opción</option>' + defaultOptions;
   }
 };
 
@@ -1999,7 +2489,9 @@ function setupEventListeners() {
 
   document.getElementById('btn-see-all')?.addEventListener('click', () => showView('stats'));
   document.getElementById('btn-open-subscriptions-view')?.addEventListener('click', () => showView('subscriptions'));
+  document.getElementById('btn-open-budget-config')?.addEventListener('click', () => openBudgetConfigModal());
   document.getElementById('btn-open-notifications')?.addEventListener('click', () => openNotificationsSheet());
+  document.getElementById('btn-open-notifications-profile')?.addEventListener('click', () => openNotificationsSheet());
   document.getElementById('btn-close-notifications-sheet')?.addEventListener('click', closeNotificationsSheet);
   document.getElementById('notifications-sheet-overlay')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeNotificationsSheet();
@@ -2028,6 +2520,15 @@ function setupEventListeners() {
   document.getElementById('btn-back-profile')?.addEventListener('click', () => showView('home'));
 
   document.getElementById('btn-save-profile')?.addEventListener('click', saveUserSettings);
+  document.getElementById('btn-edit-avatar')?.addEventListener('click', () => showSnackbar('Edición de avatar próximamente', 'warning'));
+  document.getElementById('btn-open-change-password')?.addEventListener('click', openPasswordSheet);
+  document.getElementById('btn-close-password-sheet')?.addEventListener('click', closePasswordSheet);
+  document.getElementById('password-sheet-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closePasswordSheet();
+  });
+  document.getElementById('btn-save-password')?.addEventListener('click', () => {
+    handleChangePassword();
+  });
 
   document.getElementById('btn-auth-login')?.addEventListener('click', async () => {
     const { email, password } = getAuthCredentials();

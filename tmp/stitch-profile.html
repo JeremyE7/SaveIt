@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "background": "#111318",
+                    "surface-container-lowest": "#0c0e12",
+                    "surface-container-low": "#1a1c20",
+                    "tertiary": "#b1ffb5",
+                    "inverse-surface": "#e2e2e8",
+                    "on-error": "#690005",
+                    "surface-container-highest": "#333539",
+                    "inverse-primary": "#006875",
+                    "on-secondary-container": "#a8afff",
+                    "tertiary-container": "#49ed72",
+                    "on-error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#3ce36a",
+                    "on-tertiary": "#003912",
+                    "tertiary-fixed": "#69ff87",
+                    "secondary-fixed": "#e0e0ff",
+                    "outline": "#849396",
+                    "primary-container": "#00e5ff",
+                    "on-primary-fixed": "#001f24",
+                    "surface-dim": "#111318",
+                    "on-tertiary-fixed": "#002108",
+                    "outline-variant": "#3b494c",
+                    "surface-tint": "#00daf3",
+                    "on-secondary-fixed-variant": "#343d96",
+                    "on-surface-variant": "#bac9cc",
+                    "primary-fixed-dim": "#00daf3",
+                    "primary-fixed": "#9cf0ff",
+                    "surface": "#111318",
+                    "error": "#ffb4ab",
+                    "surface-container-high": "#282a2e",
+                    "surface-bright": "#37393e",
+                    "inverse-on-surface": "#2f3035",
+                    "on-primary": "#00363d",
+                    "on-primary-fixed-variant": "#004f58",
+                    "secondary": "#bdc2ff",
+                    "on-primary-container": "#00626e",
+                    "secondary-fixed-dim": "#bdc2ff",
+                    "on-background": "#e2e2e8",
+                    "on-tertiary-container": "#006727",
+                    "on-secondary-fixed": "#000767",
+                    "on-secondary": "#1b247f",
+                    "surface-container": "#1e2024",
+                    "on-tertiary-fixed-variant": "#00531e",
+                    "error-container": "#93000a",
+                    "surface-variant": "#333539",
+                    "primary": "#c3f5ff",
+                    "secondary-container": "#343d96",
+                    "on-surface": "#e2e2e8"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .bg-glass {
+            background: rgba(51, 53, 57, 0.6);
+            backdrop-filter: blur(24px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#1a1c20] shadow-none">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden border border-primary/20">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Close-up portrait of a professional man with kind eyes in soft studio lighting with a neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWhQM77uanRLhM5FI2iIvzUAm7dSOdO7PaLrYYmfWcb-okTm-2drWy1U-H0ge9fnlOMsg8n81eP-WIY30H7BSCl2t5EDBrIgR2soyxOAVgbSzscZy6Wmt5_YRMhvD1HgilZQSV9-F5wKfZyZ5rA2X9UDchvLWtSdu8DSoqxCjbbM3BxySYHL8vGLLayWNp3c-rdKUluXae4RYrFeS4a-YQBnFcDU8sywm2cmo-7Gqqt-Bv-xooRqbJ9ilTC_AqbF-FrpB7xnK3AX4"/>
+</div>
+<h1 class="font-['Plus_Jakarta_Sans'] font-bold text-xl tracking-tight text-[#c3f5ff]">Mi Cuenta</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-[#c3f5ff] material-symbols-outlined hover:bg-[#37393e] p-2 rounded-full transition-colors">notifications</button>
+</div>
+</header>
+<main class="pt-20 px-4 max-w-2xl mx-auto space-y-6">
+<!-- Profile Header Section -->
+<section class="relative overflow-hidden rounded-xl bg-surface-container-low p-8 text-center border border-outline-variant/10">
+<div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-primary/10 to-transparent"></div>
+<div class="relative flex flex-col items-center">
+<div class="relative group">
+<div class="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-primary to-primary-container shadow-[0_0_20px_rgba(0,229,255,0.2)]">
+<img alt="Avatar" class="w-full h-full object-cover rounded-full" data-alt="Detailed close-up portrait of a man smiling warmly, high-end photography with shallow depth of field" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSHXmgpS40si6WO9PKwtSNwM5cOdDCTMoNOIaNK3UVUm0c_CP4h6EkA0wOMhuhhsmA58shcm_px1pEnP13cp5sdHZaSvW03nqMj4A3th-TgqqHDdUVIp7YZfesYgkq32fPpyfB7vs0fc-7j8jmmencrOGSeXG8o5ZckCrOkasJXcj_4YcZt4Xa6iJQ28jvYGlLXTxlbym4xb3ZosSq193t63WSC10hsCFFOaIzEbcyFNfZk95MUWsC63BbHjjx0b6nX44pUm2vL_o"/>
+</div>
+<button class="absolute bottom-0 right-0 bg-primary-container text-on-primary-container p-1.5 rounded-full shadow-lg border-2 border-surface-container-low">
+<span class="material-symbols-outlined text-sm">edit</span>
+</button>
+</div>
+<h2 class="mt-4 font-headline text-2xl font-bold text-on-surface">Alex Thompson</h2>
+<p class="text-on-surface-variant text-sm font-medium tracking-wide flex items-center gap-1 justify-center">
+<span class="material-symbols-outlined text-xs">calendar_today</span>
+                    Miembro desde Enero 2024
+                </p>
+</div>
+</section>
+<!-- Profile Form Section -->
+<section class="bg-surface-container rounded-xl p-6 space-y-5">
+<h3 class="font-headline font-semibold text-lg text-primary tracking-tight">Información Personal</h3>
+<div class="space-y-4">
+<div class="space-y-1.5">
+<label class="text-xs font-bold uppercase tracking-widest text-outline pl-1">Nombre Completo</label>
+<div class="relative group">
+<input class="w-full bg-surface-container-highest border-none rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-surface-tint/40 transition-all" type="text" value="Alex Thompson"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline text-sm">edit</span>
+</div>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold uppercase tracking-widest text-outline pl-1">Correo Electrónico</label>
+<div class="relative group">
+<input class="w-full bg-surface-container-highest border-none rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-surface-tint/40 transition-all" type="email" value="alex.thompson@saveit.app"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline text-sm">mail</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Custom Categories Section -->
+<section class="bg-surface-container rounded-xl p-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline font-semibold text-lg text-primary tracking-tight">Categorías Personalizadas</h3>
+<button class="bg-primary/10 text-primary-fixed-dim px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">Gestionar</button>
+</div>
+<div class="space-y-2">
+<!-- Category Item -->
+<div class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-tertiary/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined">restaurant</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface">Restaurantes</p>
+<p class="text-xs text-outline">12 transacciones este mes</p>
+</div>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+</div>
+<!-- Category Item -->
+<div class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">directions_car</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface">Transporte</p>
+<p class="text-xs text-outline">8 transacciones este mes</p>
+</div>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+</div>
+<!-- Category Item -->
+<div class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">subscriptions</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface">Suscripciones</p>
+<p class="text-xs text-outline">4 transacciones este mes</p>
+</div>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Authentication / Security Card -->
+<section class="bg-surface-container rounded-xl p-6 space-y-4">
+<h3 class="font-headline font-semibold text-lg text-primary tracking-tight">Seguridad</h3>
+<button class="w-full flex items-center justify-between p-4 rounded-xl bg-surface-container-highest/50 hover:bg-surface-container-highest transition-all group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">lock</span>
+<span class="font-medium">Cambiar Contraseña</span>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-4 rounded-xl bg-surface-container-highest/50 hover:bg-surface-container-highest transition-all group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">fingerprint</span>
+<span class="font-medium">Autenticación Biométrica</span>
+</div>
+<div class="w-10 h-6 bg-primary-container/20 rounded-full relative">
+<div class="absolute right-1 top-1 w-4 h-4 bg-primary-container rounded-full shadow-sm"></div>
+</div>
+</button>
+</section>
+<!-- Session States / Logout -->
+<section class="pt-4 pb-12">
+<button class="w-full py-4 rounded-full bg-error-container/10 border border-error/20 text-error font-bold flex items-center justify-center gap-2 hover:bg-error-container/20 active:scale-95 transition-all">
+<span class="material-symbols-outlined">logout</span>
+                Cerrar Sesión
+            </button>
+<p class="text-center text-outline text-[10px] mt-6 uppercase tracking-widest font-semibold">Versión 2.4.1 (Stable)</p>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe h-20 bg-[#0c0e12] border-t border-white/5 shadow-[0_-24px_48px_-12px_rgba(0,218,243,0.08)]">
+<button class="flex flex-col items-center justify-center text-slate-500 hover:text-[#c3f5ff] transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined">home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500 hover:text-[#c3f5ff] transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined">leaderboard</span>
+</button>
+<button class="w-14 h-14 -mt-8 flex items-center justify-center rounded-full bg-gradient-to-br from-[#c3f5ff] to-[#00daf3] text-[#00363d] shadow-[0_8px_20px_rgba(0,229,255,0.3)] active:scale-90 transition-transform">
+<span class="material-symbols-outlined font-bold">add</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500 hover:text-[#c3f5ff] transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#00e5ff] relative after:content-[''] after:absolute after:-bottom-1 after:w-1 after:h-1 after:bg-[#00e5ff] after:rounded-full after:shadow-[0_0_8px_#00e5ff]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+</button>
+</nav>
+</body></html>

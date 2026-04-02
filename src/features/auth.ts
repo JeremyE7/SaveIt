@@ -1,4 +1,13 @@
-import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
+import {
+  EmailAuthProvider,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  signInWithEmailAndPassword,
+  signOut,
+  updatePassword,
+  type User,
+} from 'firebase/auth';
 import { getFirebaseAuth } from '../firebase';
 
 const ensureAuth = () => {
@@ -29,4 +38,17 @@ export const logoutCurrentUser = async (): Promise<void> => {
 export const subscribeAuthState = (callback: (user: User | null) => void): (() => void) => {
   const auth = ensureAuth();
   return onAuthStateChanged(auth, callback);
+};
+
+export const changeCurrentUserPassword = async (currentPassword: string, newPassword: string): Promise<void> => {
+  const auth = ensureAuth();
+  const user = auth.currentUser;
+
+  if (!user || !user.email) {
+    throw new Error('No hay una sesión activa para cambiar contraseña');
+  }
+
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
 };

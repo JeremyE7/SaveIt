@@ -391,6 +391,82 @@ export const initSwipeBudget = (
   document.addEventListener('mouseup', handleTouchEnd);
 };
 
+export const initSwipeBudgetEditOnly = (
+  element: HTMLElement,
+  budget: Budget,
+  onEdit: (budget: Budget) => void
+) => {
+  let startX = 0;
+  let currentX = 0;
+  let isDragging = false;
+
+  const showEditIndicator = () => {
+    let indicator = element.querySelector('.swipe-indicator') as HTMLElement;
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.className = 'swipe-indicator';
+      element.appendChild(indicator);
+    }
+
+    indicator.className = 'swipe-indicator swipe-indicator-edit';
+    indicator.innerHTML = `
+      <span class="material-symbols-outlined">edit</span>
+      <span>Editar</span>
+    `;
+  };
+
+  const handleTouchStart = (e: TouchEvent | MouseEvent) => {
+    startX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+    currentX = startX;
+    isDragging = true;
+    element.style.transition = 'none';
+  };
+
+  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
+    if (!isDragging) return;
+
+    currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+    const diff = currentX - startX;
+
+    if (diff > 0) {
+      element.style.transform = `translateX(${diff}px)`;
+      element.style.setProperty('--swipe-action', 'edit');
+      if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+        showEditIndicator();
+      } else {
+        hideSwipeIndicator(element);
+      }
+    } else {
+      element.style.transform = '';
+      element.style.removeProperty('--swipe-action');
+      hideSwipeIndicator(element);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const diff = currentX - startX;
+    element.style.transition = 'transform 0.3s ease';
+    element.style.transform = '';
+    element.style.removeProperty('--swipe-action');
+    hideSwipeIndicator(element);
+
+    if (diff >= SWIPE_THRESHOLD) {
+      onEdit(budget);
+    }
+  };
+
+  element.addEventListener('touchstart', handleTouchStart, { passive: true });
+  element.addEventListener('touchmove', handleTouchMove, { passive: true });
+  element.addEventListener('touchend', handleTouchEnd);
+
+  element.addEventListener('mousedown', handleTouchStart);
+  document.addEventListener('mousemove', handleTouchMove as EventListener);
+  document.addEventListener('mouseup', handleTouchEnd);
+};
+
 export const openEditBudgetModal = (budget: Budget) => {
   const modal = document.getElementById('budget-sheet-overlay');
   if (!modal) return;

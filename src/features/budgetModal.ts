@@ -3,6 +3,88 @@ import { getBudgets, checkBudgetAlerts, type BudgetAlert, getSpentByGroup } from
 import { expenseGroups, type ExpenseGroup } from "../types/ExpenseGroups";
 import { getBudgetConfig, setBudgetConfig, calculateBudgetAmounts, isValidBudgetConfig, type BudgetConfig } from "../types/BudgetConfig";
 import { getCurrentMonthIncomeTotal } from "../utils/general";
+import { getAllSubscriptions, getNextChargeDate } from "./subscriptions";
+import { initSwipeBudgetEditOnly } from "../utils/swipe";
+
+const formatMoney = (value: number): string => `$${value.toFixed(2)}`;
+
+const renderBudgetRuleSummary = (config: BudgetConfig, totalIncome: number) => {
+  const amounts = calculateBudgetAmounts(config, totalIncome);
+  const ruleColors = {
+    needs: '#00e5ff',
+    wants: '#eab308',
+    savings: '#5f6b6e',
+  };
+
+  const needsPercentEl = document.getElementById('budget-rule-needs-percent');
+  const wantsPercentEl = document.getElementById('budget-rule-wants-percent');
+  const savingsPercentEl = document.getElementById('budget-rule-savings-percent');
+
+  const needsAmountEl = document.getElementById('budget-rule-needs-amount');
+  const wantsAmountEl = document.getElementById('budget-rule-wants-amount');
+  const savingsAmountEl = document.getElementById('budget-rule-savings-amount');
+
+  const needsBarEl = document.getElementById('budget-rule-needs-bar') as HTMLSpanElement | null;
+  const wantsBarEl = document.getElementById('budget-rule-wants-bar') as HTMLSpanElement | null;
+  const savingsBarEl = document.getElementById('budget-rule-savings-bar') as HTMLSpanElement | null;
+
+  if (needsPercentEl) needsPercentEl.textContent = `${config.needs}%`;
+  if (wantsPercentEl) wantsPercentEl.textContent = `${config.wants}%`;
+  if (savingsPercentEl) savingsPercentEl.textContent = `${config.savings}%`;
+
+  if (needsAmountEl) needsAmountEl.textContent = formatMoney(amounts.needs);
+  if (wantsAmountEl) wantsAmountEl.textContent = formatMoney(amounts.wants);
+  if (savingsAmountEl) savingsAmountEl.textContent = formatMoney(amounts.savings);
+
+  if (needsBarEl) needsBarEl.style.width = `${config.needs}%`;
+  if (wantsBarEl) wantsBarEl.style.width = `${config.wants}%`;
+  if (savingsBarEl) savingsBarEl.style.width = `${config.savings}%`;
+
+  if (needsBarEl) needsBarEl.style.background = ruleColors.needs;
+  if (wantsBarEl) wantsBarEl.style.background = ruleColors.wants;
+  if (savingsBarEl) savingsBarEl.style.background = ruleColors.savings;
+};
+
+const renderUpcomingSubscriptionPreview = () => {
+  const preview = document.getElementById('budgets-upcoming-preview');
+  if (!preview) return;
+
+  const upcoming = getAllSubscriptions()
+    .filter((subscription) => subscription.status === 'active')
+    .map((subscription) => ({
+      subscription,
+      nextDate: getNextChargeDate(subscription),
+    }))
+    .sort((a, b) => a.nextDate.getTime() - b.nextDate.getTime())[0];
+
+  if (!upcoming) {
+    preview.innerHTML = `
+      <div class="budgets-upcoming-empty">
+        <p>No tienes suscripciones activas.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const dateLabel = upcoming.nextDate.toLocaleDateString('es-EC', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  });
+
+  preview.innerHTML = `
+    <div class="budgets-upcoming-left">
+      <div class="budgets-upcoming-icon">
+        <span class="material-symbols-outlined">subscriptions</span>
+      </div>
+      <div>
+        <p class="budgets-upcoming-name">${upcoming.subscription.name}</p>
+        <p class="budgets-upcoming-date">${dateLabel}</p>
+      </div>
+    </div>
+    <p class="budgets-upcoming-amount">${formatMoney(upcoming.subscription.amount)}</p>
+  `;
+};
 
 export const loadBudgetCategoryOptions = () => {};
 
@@ -16,6 +98,9 @@ export const renderBudgetsList = () => {
   const totalIncome = getCurrentMonthIncomeTotal();
   
   if (!container) return;
+
+  renderBudgetRuleSummary(config, totalIncome);
+  renderUpcomingSubscriptionPreview();
   
   if (totalIncome <= 0) {
     container.innerHTML = `
@@ -35,8 +120,17 @@ export const renderBudgetsList = () => {
     const budget = budgets.find(b => b.category === group);
     const budgetAmount = budget?.amount || amounts[group];
     const spent = getSpentByGroup(group, expenses);
+    const remaining = Math.max(budgetAmount - spent, 0);
+    const overflow = Math.max(spent - budgetAmount, 0);
     const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
     const progressClass = percentage >= 100 ? 'danger' : percentage >= 80 ? 'warning' : 'safe';
+    const statusLabel = percentage >= 100 ? 'Excedido' : percentage >= 90 ? 'Riesgo Alto' : percentage >= 70 ? 'Atención' : 'En Control';
+    const statusClass = percentage >= 100 ? 'danger' : percentage >= 90 ? 'danger' : percentage >= 70 ? 'warning' : 'safe';
+    const statusMeta = percentage >= 100
+      ? `Exceso ${formatMoney(overflow)}`
+      : remaining === 0
+        ? 'Completado'
+        : `Restan ${formatMoney(remaining)}`;
     
     return `
       <div class="budget-item" data-category="${group}">
@@ -50,16 +144,39 @@ export const renderBudgetsList = () => {
               <p class="budget-item-desc">${groupInfo.description}</p>
             </div>
           </div>
-        </div>
-        <div class="budget-item-progress-info">
-          <p class="budget-item-amount">${spent.toFixed(2)} / ${budgetAmount.toFixed(2)}$ <span>(${config[group]}%)</span></p>
+          <div class="budget-item-summary">
+            <p class="budget-item-amount">${formatMoney(spent)} <span>/ ${formatMoney(budgetAmount)}</span></p>
+            <p class="budget-item-status ${statusClass}">${statusLabel}</p>
+          </div>
         </div>
         <div class="budget-progress">
           <div class="budget-progress-bar ${progressClass}" style="width: ${Math.min(percentage || 0, 100)}%; background: ${groupInfo.color};"></div>
         </div>
+        <div class="budget-item-progress-info">
+          <p>${statusMeta}</p>
+          <p>${formatMoney(spent)} consumidos</p>
+        </div>
       </div>
     `;
   }).join('');
+
+  container.querySelectorAll('.budget-item').forEach((item) => {
+    const category = (item as HTMLElement).dataset.category as ExpenseGroup | undefined;
+    if (!category) return;
+
+    const budget = budgets.find((entry) => entry.category === category);
+    const budgetAmount = budget?.amount || amounts[category];
+
+    initSwipeBudgetEditOnly(
+      item as HTMLElement,
+      {
+        category,
+        amount: budgetAmount,
+        period: 'monthly',
+      },
+      () => openBudgetConfigModal(),
+    );
+  });
 };
 
 export const checkBudgetAlertsOnLoad = () => {
