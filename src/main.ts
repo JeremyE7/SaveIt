@@ -34,8 +34,6 @@ const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
         if (typeof oneSignal.login === 'function') {
           await oneSignal.login(user.uid);
         }
-      } else if (typeof oneSignal.logout === 'function') {
-        await oneSignal.logout();
       }
     } catch {
       // noop: OneSignal no debe romper flujo auth
@@ -51,6 +49,31 @@ const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
   const oneSignal = (window as any).OneSignal;
   if (oneSignal) {
     await applyIdentity(oneSignal);
+  }
+};
+
+const clearOneSignalIdentity = async (): Promise<void> => {
+  if (typeof window === 'undefined') return;
+
+  const runLogout = async (oneSignal: any) => {
+    try {
+      if (typeof oneSignal?.logout === 'function') {
+        await oneSignal.logout();
+      }
+    } catch {
+      // noop
+    }
+  };
+
+  const deferred = (window as any).OneSignalDeferred;
+  if (Array.isArray(deferred)) {
+    deferred.push((oneSignal: any) => runLogout(oneSignal));
+    return;
+  }
+
+  const oneSignal = (window as any).OneSignal;
+  if (oneSignal) {
+    await runLogout(oneSignal);
   }
 };
 
@@ -2627,6 +2650,7 @@ function setupEventListeners() {
 
   document.getElementById('btn-auth-logout')?.addEventListener('click', async () => {
     try {
+      await clearOneSignalIdentity();
       await logoutCurrentUser();
       showSnackbar('Sesión cerrada', 'success');
     } catch (error) {
