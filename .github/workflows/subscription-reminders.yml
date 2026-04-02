@@ -34,4 +34,5 @@ jobs:
           ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
           ONESIGNAL_REST_API_KEY: ${{ secrets.ONESIGNAL_REST_API_KEY }}
           NOTIFICATION_TIMEZONE: America/Guayaquil
+          FIRESTORE_DATABASE_ID: ${{ vars.FIRESTORE_DATABASE_ID || '(default)' }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}

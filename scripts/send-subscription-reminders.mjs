@@ -1,9 +1,11 @@
 import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
 const oneSignalApiKey = process.env.ONESIGNAL_REST_API_KEY;
 const timeZone = process.env.NOTIFICATION_TIMEZONE || 'America/Guayaquil';
+const firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || '(default)';
 const dryRun = (process.env.DRY_RUN || '').toLowerCase() === 'true';
 
 if (!serviceAccountJson) {
@@ -22,7 +24,7 @@ if (!admin.apps.length) {
   });
 }
 
-const db = admin.firestore();
+const db = getFirestore(admin.app(), firestoreDatabaseId);
 
 const getDatePartsInTZ = () => {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -80,7 +82,15 @@ const sendPush = async ({ externalId, title, body, data }) => {
 
 const run = async () => {
   const today = getDatePartsInTZ();
-  console.log(`[start] timezone=${timeZone} date=${today.isoDate} period=${today.period}`);
+  console.log(`[start] timezone=${timeZone} date=${today.isoDate} period=${today.period} db=${firestoreDatabaseId} project=${serviceAccount.project_id}`);
+
+  try {
+    const rootCollections = await db.listCollections();
+    const rootIds = rootCollections.map((col) => col.id).sort();
+    console.log(`[debug] rootCollections=${rootIds.join(',') || '(none)'}`);
+  } catch (error) {
+    console.log('[debug] rootCollections=unavailable', error?.message || error);
+  }
 
   const usersSnap = await db.collection('users').get();
 
