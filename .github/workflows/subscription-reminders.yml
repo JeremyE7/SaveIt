@@ -9,6 +9,10 @@ on:
         description: 'Run without sending notifications'
         required: false
         default: 'false'
+      force_send:
+        description: 'Ignore date and send to active subscriptions with notifyEnabled=true'
+        required: false
+        default: 'false'
 
 jobs:
   send-reminders:
@@ -36,3 +40,4 @@ jobs:
           NOTIFICATION_TIMEZONE: America/Guayaquil
           FIRESTORE_DATABASE_ID: ${{ vars.FIRESTORE_DATABASE_ID || '(default)' }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          FORCE_SEND_ACTIVE: ${{ github.event.inputs.force_send || 'false' }}

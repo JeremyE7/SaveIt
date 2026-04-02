@@ -8,6 +8,7 @@ const timeZone = process.env.NOTIFICATION_TIMEZONE || 'America/Guayaquil';
 const firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || '(default)';
 const dryRun = (process.env.DRY_RUN || '').toLowerCase() === 'true';
 const HISTORY_RETENTION_MONTHS = Number(process.env.NOTIFICATION_HISTORY_MONTHS || 6);
+const forceSendActive = (process.env.FORCE_SEND_ACTIVE || '').toLowerCase() === 'true';
 
 if (!serviceAccountJson) {
   throw new Error('Missing FIREBASE_SERVICE_ACCOUNT_JSON');
@@ -114,7 +115,7 @@ const sendPush = async ({ externalId, title, body, data }) => {
 
 const run = async () => {
   const today = getDatePartsInTZ();
-  console.log(`[start] timezone=${timeZone} date=${today.isoDate} period=${today.period} db=${firestoreDatabaseId} project=${serviceAccount.project_id}`);
+  console.log(`[start] timezone=${timeZone} date=${today.isoDate} period=${today.period} db=${firestoreDatabaseId} project=${serviceAccount.project_id} forceSendActive=${forceSendActive}`);
 
   try {
     const rootCollections = await db.listCollections();
@@ -179,23 +180,28 @@ const run = async () => {
       if (!Number.isFinite(billingDay) || billingDay < 1 || billingDay > 31) continue;
 
       const reminderDay = billingDay - notifyDaysBefore;
+      const shouldForceNotify = forceSendActive && subscription.notifyEnabled;
 
-      if (subscription.notifyEnabled && notifyDaysBefore > 0 && reminderDay >= 1 && today.day === reminderDay) {
+      if (shouldForceNotify || (subscription.notifyEnabled && notifyDaysBefore > 0 && reminderDay >= 1 && today.day === reminderDay)) {
         const reminderKey = `${subscription.id}:${today.period}:reminder`;
-        if (!history.has(reminderKey)) {
+        if (shouldForceNotify || !history.has(reminderKey)) {
           await sendPush({
             externalId: uid,
-            title: 'Recordatorio de suscripción',
-            body: `Se aproxima el cobro de ${subscription.name} por $${Number(subscription.amount || 0).toFixed(2)}.`,
+            title: shouldForceNotify ? 'Prueba de notificación de suscripción' : 'Recordatorio de suscripción',
+            body: shouldForceNotify
+              ? `${subscription.name} está activa y tiene notificaciones habilitadas.`
+              : `Se aproxima el cobro de ${subscription.name} por $${Number(subscription.amount || 0).toFixed(2)}.`,
             data: {
-              type: 'subscription_reminder',
+              type: shouldForceNotify ? 'subscription_force_test' : 'subscription_reminder',
               subscriptionId: subscription.id,
               period: today.period,
             },
           });
 
-          history.add(reminderKey);
-          userHistoryChanged = true;
+          if (!shouldForceNotify) {
+            history.add(reminderKey);
+            userHistoryChanged = true;
+          }
           reminderNotifications += 1;
         }
       }
