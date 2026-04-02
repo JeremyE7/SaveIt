@@ -26,8 +26,8 @@ let currentSyncUid: string | null = null;
 
 type FirestoreSyncStatus = 'syncing' | 'synced' | 'error' | 'offline';
 
-const emitSyncStatus = (status: FirestoreSyncStatus, reason?: string) => {
-  window.dispatchEvent(new CustomEvent('firestoreSyncStatus', { detail: { status, reason } }));
+const emitSyncStatus = (status: FirestoreSyncStatus) => {
+  window.dispatchEvent(new CustomEvent('firestoreSyncStatus', { detail: { status } }));
 };
 
 const emitSyncedWithDelay = () => {
@@ -140,19 +140,18 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
   if (!uid) {
     currentSyncUid = null;
     syncDocRef = null;
-    // Sin sesión no es un error de conexión; app opera en modo local
-    emitSyncStatus('synced');
+    emitSyncStatus('offline');
     return;
   }
 
   if (!isFirebaseEnabled()) {
-    emitSyncStatus('error');
+    emitSyncStatus('offline');
     return;
   }
 
   const db = getFirebaseDb();
   if (!db) {
-    emitSyncStatus('error');
+    emitSyncStatus('offline');
     return;
   }
 
@@ -160,17 +159,26 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
   currentSyncUid = uid;
 
   if (previousUid && previousUid !== uid) {
-    // Evitar propagar borrado a la cuenta remota previa durante el switch de usuario
-    syncDocRef = null;
     clearTrackedLocalData();
   }
 
   syncDocRef = doc(db, 'users', uid, 'appData', 'main');
+  const userDocRef = doc(db, 'users', uid);
 
   patchLocalStorageForSync();
 
   try {
     emitSyncStatus('syncing');
+
+    // Asegura que el documento padre del usuario exista
+    await setDoc(
+      userDocRef,
+      {
+        uid,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
 
     const snapshot = await getDoc(syncDocRef);
 
@@ -181,13 +189,8 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
     }
 
     emitSyncStatus('synced');
-  } catch (error) {
-    const reason = (error as { code?: string; message?: string })?.code
-      || (error as { message?: string })?.message
-      || 'unknown-sync-error';
-
-    console.error('[firestore-sync] initialize failed:', reason, error);
-    emitSyncStatus(typeof navigator !== 'undefined' && navigator.onLine ? 'error' : 'offline', reason);
+  } catch {
+    emitSyncStatus('offline');
     // Si Firestore falla, app sigue funcionando local
   }
 };

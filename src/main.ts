@@ -24,111 +24,33 @@ registerSW({ immediate: false });
 let currentView = 'home';
 let currentAuthUser: User | null = null;
 let lastAuthUid: string | null = null;
-let lastOneSignalExternalId: string | null = null;
-
-const isNoSubscriptionAliasError = (error: unknown): boolean => {
-  const message = String((error as { message?: string })?.message || error || '');
-  return message.includes('No subscription with alias');
-};
-
-const isAliasConflictError = (error: unknown): boolean => {
-  const message = String((error as { message?: string })?.message || error || '');
-  return message.includes('user-2') || message.includes('claimed by another User');
-};
-
-const getOneSignalInstance = async (): Promise<any | null> => {
-  if (typeof window === 'undefined') return null;
-
-  const current = (window as any).OneSignal;
-  if (current) return current;
-
-  const deferred = (window as any).OneSignalDeferred;
-  if (!Array.isArray(deferred)) return null;
-
-  return await new Promise((resolve) => {
-    let settled = false;
-    const timeout = window.setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      resolve(null);
-    }, 2000);
-
-    deferred.push((oneSignal: any) => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timeout);
-      resolve(oneSignal || null);
-    });
-  });
-};
 
 const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
-  if (!user) return;
+  if (typeof window === 'undefined') return;
 
-  try {
-    const oneSignal = await getOneSignalInstance();
-    if (!oneSignal || typeof oneSignal.login !== 'function') return;
-
-    const subscriptionId = oneSignal?.User?.PushSubscription?.id;
-    if (!subscriptionId) {
-      return;
-    }
-
-    // Si detectamos cambio de usuario local, limpiamos identidad previa antes de re-login
-    if (lastOneSignalExternalId && lastOneSignalExternalId !== user.uid && typeof oneSignal.logout === 'function') {
-      try {
-        await oneSignal.logout();
-      } catch (error) {
-        if (!isNoSubscriptionAliasError(error)) {
-          throw error;
-        }
-      }
-    }
-
-    if (lastOneSignalExternalId === user.uid) return;
-
+  const applyIdentity = async (oneSignal: any) => {
     try {
-      await oneSignal.login(user.uid);
-    } catch (error) {
-      if (!isAliasConflictError(error)) throw error;
-
-      if (typeof oneSignal.logout === 'function') {
-        try {
-          await oneSignal.logout();
-        } catch (logoutError) {
-          if (!isNoSubscriptionAliasError(logoutError)) {
-            throw logoutError;
-          }
+      if (user) {
+        if (typeof oneSignal.login === 'function') {
+          await oneSignal.login(user.uid);
         }
+      } else if (typeof oneSignal.logout === 'function') {
+        await oneSignal.logout();
       }
-
-      await oneSignal.login(user.uid);
+    } catch {
+      // noop: OneSignal no debe romper flujo auth
     }
+  };
 
-    lastOneSignalExternalId = user.uid;
-  } catch {
-    // noop: OneSignal no debe romper flujo auth
+  const deferred = (window as any).OneSignalDeferred;
+  if (Array.isArray(deferred)) {
+    deferred.push((oneSignal: any) => applyIdentity(oneSignal));
+    return;
   }
-};
 
-const clearOneSignalIdentity = async (): Promise<void> => {
-  try {
-    const oneSignal = await getOneSignalInstance();
-    if (!oneSignal || typeof oneSignal.logout !== 'function') return;
-
-    const subscriptionId = oneSignal?.User?.PushSubscription?.id;
-    if (!subscriptionId) {
-      lastOneSignalExternalId = null;
-      return;
-    }
-
-    await oneSignal.logout();
-  } catch (error) {
-    if (!isNoSubscriptionAliasError(error)) {
-      // noop
-    }
-  } finally {
-    lastOneSignalExternalId = null;
+  const oneSignal = (window as any).OneSignal;
+  if (oneSignal) {
+    await applyIdentity(oneSignal);
   }
 };
 
@@ -316,14 +238,12 @@ const loadHomeView = () => {
   const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
   const usernameEl = document.getElementById('dashboard-username');
   const avatarEl = document.getElementById('dashboard-avatar');
-  const authFallbackName = (currentAuthUser?.displayName || currentAuthUser?.email?.split('@')[0] || '').trim();
-  const resolvedHomeName = (userSettings.name || authFallbackName || 'SaveIt').trim();
   
   if (usernameEl) {
-    usernameEl.textContent = resolvedHomeName;
+    usernameEl.textContent = userSettings.name || 'SaveIt';
   }
-  if (avatarEl && resolvedHomeName) {
-    const initial = resolvedHomeName.charAt(0).toUpperCase();
+  if (avatarEl && userSettings.name) {
+    const initial = userSettings.name.charAt(0).toUpperCase();
     avatarEl.innerHTML = `<span class="dashboard-avatar-initial">${initial}</span>`;
     avatarEl.style.background = 'rgba(0, 229, 255, 0.24)';
   } else if (avatarEl) {
@@ -1481,9 +1401,8 @@ const setupSyncStatusIndicator = () => {
   };
 
   window.addEventListener('firestoreSyncStatus', ((event: Event) => {
-    const customEvent = event as CustomEvent<{ status: 'syncing' | 'synced' | 'error' | 'offline'; reason?: string }>;
+    const customEvent = event as CustomEvent<{ status: 'syncing' | 'synced' | 'error' | 'offline' }>;
     const status = customEvent.detail?.status;
-    const reason = customEvent.detail?.reason;
 
     if (status === 'syncing') {
       show('Sincronizando…', '#94a3b8');
@@ -1503,9 +1422,6 @@ const setupSyncStatusIndicator = () => {
     }
 
     if (status === 'error') {
-      if (reason) {
-        console.error('[sync-status:error]', reason);
-      }
       show('Error de sincronización', '#fca5a5');
       hide(2200);
     }
@@ -1601,17 +1517,15 @@ const setupAuthStateSync = async (): Promise<void> => {
     subscribeAuthState(async (user) => {
       currentAuthUser = user;
       updateAuthUi();
-      // OneSignal no debe bloquear sincronización principal de datos
-      void syncOneSignalIdentity(user);
+      await syncOneSignalIdentity(user);
 
       if (user) {
         await initializeFirestoreSync(user.uid);
       } else {
-        // Primero desacoplar sync remoto; luego limpiar solo local
-        await initializeFirestoreSync();
         if (lastAuthUid) {
           clearTrackedLocalData();
         }
+        await initializeFirestoreSync();
       }
 
       lastAuthUid = user?.uid || null;
@@ -1666,7 +1580,7 @@ const loadUserSettings = () => {
     emailInput.readOnly = Boolean(currentAuthUser);
   }
 
-  const resolvedName = settings.name || currentAuthUser?.displayName || currentAuthUser?.email?.split('@')[0] || 'SaveIt User';
+  const resolvedName = settings.name || currentAuthUser?.displayName || 'SaveIt User';
   if (displayNameEl) {
     displayNameEl.textContent = resolvedName;
   }
@@ -2713,7 +2627,6 @@ function setupEventListeners() {
 
   document.getElementById('btn-auth-logout')?.addEventListener('click', async () => {
     try {
-      await clearOneSignalIdentity();
       await logoutCurrentUser();
       showSnackbar('Sesión cerrada', 'success');
     } catch (error) {
