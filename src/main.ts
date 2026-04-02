@@ -25,6 +25,35 @@ let currentView = 'home';
 let currentAuthUser: User | null = null;
 let lastAuthUid: string | null = null;
 
+const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
+  if (typeof window === 'undefined') return;
+
+  const applyIdentity = async (oneSignal: any) => {
+    try {
+      if (user) {
+        if (typeof oneSignal.login === 'function') {
+          await oneSignal.login(user.uid);
+        }
+      } else if (typeof oneSignal.logout === 'function') {
+        await oneSignal.logout();
+      }
+    } catch {
+      // noop: OneSignal no debe romper flujo auth
+    }
+  };
+
+  const deferred = (window as any).OneSignalDeferred;
+  if (Array.isArray(deferred)) {
+    deferred.push((oneSignal: any) => applyIdentity(oneSignal));
+    return;
+  }
+
+  const oneSignal = (window as any).OneSignal;
+  if (oneSignal) {
+    await applyIdentity(oneSignal);
+  }
+};
+
 const viewOrder: Record<string, number> = {
   home: 0,
   stats: 1,
@@ -1455,6 +1484,7 @@ const setupAuthStateSync = async (): Promise<void> => {
     subscribeAuthState(async (user) => {
       currentAuthUser = user;
       updateAuthUi();
+      await syncOneSignalIdentity(user);
 
       if (user) {
         await initializeFirestoreSync(user.uid);

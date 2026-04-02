@@ -136,6 +136,11 @@ const canNotify = (): boolean => {
   return typeof Notification !== 'undefined' && Notification.permission === 'granted';
 };
 
+const getOneSignalSdk = (): any | null => {
+  if (typeof window === 'undefined') return null;
+  return (window as any).OneSignal || null;
+};
+
 const sendPwaNotification = async (title: string, body: string): Promise<void> => {
   if (!canNotify()) return;
 
@@ -168,6 +173,18 @@ export const getNotificationPermissionState = (): NotificationPermission | 'unsu
 
 export const requestSubscriptionNotificationPermission = async (): Promise<NotificationPermission | 'unsupported'> => {
   if (typeof Notification === 'undefined') return 'unsupported';
+
+  const oneSignal = getOneSignalSdk();
+
+  try {
+    if (oneSignal?.Notifications?.requestPermission) {
+      await oneSignal.Notifications.requestPermission();
+      return Notification.permission;
+    }
+  } catch {
+    // fallback nativo
+  }
+
   return Notification.requestPermission();
 };
 
