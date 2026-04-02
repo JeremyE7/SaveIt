@@ -24,91 +24,100 @@ registerSW({ immediate: false });
 let currentView = 'home';
 let currentAuthUser: User | null = null;
 let lastAuthUid: string | null = null;
+let lastOneSignalExternalId: string | null = null;
+
+const isNoSubscriptionAliasError = (error: unknown): boolean => {
+  const message = String((error as { message?: string })?.message || error || '');
+  return message.includes('No subscription with alias');
+};
+
+const isAliasConflictError = (error: unknown): boolean => {
+  const message = String((error as { message?: string })?.message || error || '');
+  return message.includes('user-2') || message.includes('claimed by another User');
+};
+
+const getOneSignalInstance = async (): Promise<any | null> => {
+  if (typeof window === 'undefined') return null;
+
+  const current = (window as any).OneSignal;
+  if (current) return current;
+
+  const deferred = (window as any).OneSignalDeferred;
+  if (!Array.isArray(deferred)) return null;
+
+  return await new Promise((resolve) => {
+    let settled = false;
+    const timeout = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(null);
+    }, 2000);
+
+    deferred.push((oneSignal: any) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      resolve(oneSignal || null);
+    });
+  });
+};
 
 const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
-  if (typeof window === 'undefined') return;
+  if (!user) return;
 
-  const isNoSubscriptionAliasError = (error: unknown): boolean => {
-    const message = String((error as { message?: string })?.message || error || '');
-    return message.includes('No subscription with alias');
-  };
+  try {
+    const oneSignal = await getOneSignalInstance();
+    if (!oneSignal || typeof oneSignal.login !== 'function') return;
 
-  const applyIdentity = async (oneSignal: any) => {
+    // Si detectamos cambio de usuario local, limpiamos identidad previa antes de re-login
+    if (lastOneSignalExternalId && lastOneSignalExternalId !== user.uid && typeof oneSignal.logout === 'function') {
+      try {
+        await oneSignal.logout();
+      } catch (error) {
+        if (!isNoSubscriptionAliasError(error)) {
+          throw error;
+        }
+      }
+    }
+
+    if (lastOneSignalExternalId === user.uid) return;
+
     try {
-      if (user) {
-        if (typeof oneSignal.login === 'function') {
-          try {
-            await oneSignal.login(user.uid);
-          } catch (error) {
-            const message = String((error as { message?: string })?.message || error || '');
-            const isAliasConflict = message.includes('user-2') || message.includes('claimed by another User');
+      await oneSignal.login(user.uid);
+    } catch (error) {
+      if (!isAliasConflictError(error)) throw error;
 
-            if (!isAliasConflict) {
-              throw error;
-            }
-
-            // Recuperación ante conflicto de alias: limpiar identidad local y reintentar login
-            if (typeof oneSignal.logout === 'function') {
-              try {
-                await oneSignal.logout();
-              } catch (logoutError) {
-                if (!isNoSubscriptionAliasError(logoutError)) {
-                  throw logoutError;
-                }
-              }
-            }
-
-            await oneSignal.login(user.uid);
+      if (typeof oneSignal.logout === 'function') {
+        try {
+          await oneSignal.logout();
+        } catch (logoutError) {
+          if (!isNoSubscriptionAliasError(logoutError)) {
+            throw logoutError;
           }
         }
       }
-    } catch {
-      // noop: OneSignal no debe romper flujo auth
+
+      await oneSignal.login(user.uid);
     }
-  };
 
-  const deferred = (window as any).OneSignalDeferred;
-  if (Array.isArray(deferred)) {
-    deferred.push((oneSignal: any) => applyIdentity(oneSignal));
-    return;
-  }
-
-  const oneSignal = (window as any).OneSignal;
-  if (oneSignal) {
-    await applyIdentity(oneSignal);
+    lastOneSignalExternalId = user.uid;
+  } catch {
+    // noop: OneSignal no debe romper flujo auth
   }
 };
 
 const clearOneSignalIdentity = async (): Promise<void> => {
-  if (typeof window === 'undefined') return;
+  try {
+    const oneSignal = await getOneSignalInstance();
+    if (!oneSignal || typeof oneSignal.logout !== 'function') return;
 
-  const isNoSubscriptionAliasError = (error: unknown): boolean => {
-    const message = String((error as { message?: string })?.message || error || '');
-    return message.includes('No subscription with alias');
-  };
-
-  const runLogout = async (oneSignal: any) => {
-    try {
-      if (typeof oneSignal?.logout === 'function') {
-        await oneSignal.logout();
-      }
-    } catch (error) {
-      if (isNoSubscriptionAliasError(error)) {
-        return;
-      }
+    await oneSignal.logout();
+  } catch (error) {
+    if (!isNoSubscriptionAliasError(error)) {
       // noop
     }
-  };
-
-  const deferred = (window as any).OneSignalDeferred;
-  if (Array.isArray(deferred)) {
-    deferred.push((oneSignal: any) => runLogout(oneSignal));
-    return;
-  }
-
-  const oneSignal = (window as any).OneSignal;
-  if (oneSignal) {
-    await runLogout(oneSignal);
+  } finally {
+    lastOneSignalExternalId = null;
   }
 };
 
