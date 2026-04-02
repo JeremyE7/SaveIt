@@ -997,13 +997,29 @@ const loadBudgetsView = () => {
 
 const updateSubscriptionNotificationStatus = async () => {
   const statusEl = document.getElementById('subscription-notification-status');
+  const profilePushEl = document.getElementById('profile-push-indicator');
   const enableBtn = document.getElementById('btn-enable-subscription-notifications') as HTMLButtonElement;
   if (!statusEl) return;
+
+  if (!currentAuthUser) {
+    statusEl.textContent = 'Estado: inicia sesión para activar notificaciones';
+    if (profilePushEl) {
+      profilePushEl.textContent = 'Push: desactivadas. Inicia sesión para vincular OneSignal y recibir alertas en este dispositivo.';
+    }
+    if (enableBtn) {
+      enableBtn.disabled = true;
+      enableBtn.textContent = 'Inicia sesión';
+    }
+    return;
+  }
 
   const state = getNotificationPermissionState();
 
   if (state === 'unsupported') {
     statusEl.textContent = 'Estado: no soportado en este navegador';
+    if (profilePushEl) {
+      profilePushEl.textContent = 'Push: no disponible en este navegador.';
+    }
     if (enableBtn) {
       enableBtn.disabled = true;
       enableBtn.textContent = 'No disponible';
@@ -1016,18 +1032,27 @@ const updateSubscriptionNotificationStatus = async () => {
 
     if (oneSignalState === 'subscribed') {
       statusEl.textContent = 'Estado: activadas (OneSignal conectado)';
+      if (profilePushEl) {
+        profilePushEl.textContent = 'Push: activadas y conectadas con OneSignal en este dispositivo.';
+      }
       if (enableBtn) {
         enableBtn.disabled = true;
         enableBtn.textContent = 'Activadas';
       }
     } else if (oneSignalState === 'not-subscribed') {
       statusEl.textContent = 'Estado: permiso concedido, falta suscripción push';
+      if (profilePushEl) {
+        profilePushEl.textContent = 'Push: permiso concedido, pero este dispositivo aún no está suscrito en OneSignal.';
+      }
       if (enableBtn) {
         enableBtn.disabled = false;
         enableBtn.textContent = 'Reconectar';
       }
     } else {
       statusEl.textContent = 'Estado: permiso concedido, validando OneSignal...';
+      if (profilePushEl) {
+        profilePushEl.textContent = 'Push: validando conexión con OneSignal...';
+      }
       if (enableBtn) {
         enableBtn.disabled = false;
         enableBtn.textContent = 'Reintentar';
@@ -1035,12 +1060,18 @@ const updateSubscriptionNotificationStatus = async () => {
     }
   } else if (state === 'denied') {
     statusEl.textContent = 'Estado: bloqueadas';
+    if (profilePushEl) {
+      profilePushEl.textContent = 'Push: bloqueadas por el navegador. Debes habilitarlas desde configuración del sitio.';
+    }
     if (enableBtn) {
       enableBtn.disabled = true;
       enableBtn.textContent = 'Bloqueadas';
     }
   } else {
     statusEl.textContent = 'Estado: pendiente de permiso';
+    if (profilePushEl) {
+      profilePushEl.textContent = 'Push: pendientes. Actívalas para recibir recordatorios de suscripciones.';
+    }
     if (enableBtn) {
       enableBtn.disabled = false;
       enableBtn.textContent = 'Activar';
@@ -1508,6 +1539,7 @@ const updateAuthUi = () => {
   const displayNameEl = document.getElementById('profile-display-name');
   if (displayNameEl) displayNameEl.textContent = resolvedName;
   updateProfileAvatar(resolvedName);
+  void updateSubscriptionNotificationStatus();
 };
 
 const setupAuthStateSync = async (): Promise<void> => {
@@ -1518,6 +1550,7 @@ const setupAuthStateSync = async (): Promise<void> => {
       currentAuthUser = user;
       updateAuthUi();
       await syncOneSignalIdentity(user);
+      await updateSubscriptionNotificationStatus();
 
       if (user) {
         await initializeFirestoreSync(user.uid);
@@ -2524,6 +2557,12 @@ function setupEventListeners() {
   document.getElementById('btn-save-subscription')?.addEventListener('click', handleSaveSubscription);
 
   document.getElementById('btn-enable-subscription-notifications')?.addEventListener('click', async () => {
+    if (!currentAuthUser) {
+      showSnackbar('Inicia sesión para activar notificaciones push', 'warning');
+      await updateSubscriptionNotificationStatus();
+      return;
+    }
+
     const permission = await requestSubscriptionNotificationPermission();
     await updateSubscriptionNotificationStatus();
 

@@ -4100,6 +4100,17 @@ li span {
     border: 1px solid rgba(195, 245, 255, 0.12);
 }
 
+#profile-view .profile-push-indicator {
+    margin: 0 0 10px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(0, 229, 255, 0.05);
+    border: 1px solid rgba(0, 229, 255, 0.14);
+}
+
 #profile-view .profile-logout-btn {
     border-color: rgba(255, 180, 171, 0.4);
     color: #ffb4ab;
