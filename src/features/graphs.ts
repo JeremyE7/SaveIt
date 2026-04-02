@@ -28,6 +28,14 @@ export const generatePieChart = (
 ): Chart => {
   const canvas = document.getElementById("chart") as HTMLCanvasElement;
 
+  if (!canvas || typeof canvas.getContext !== 'function' || !canvas.getContext('2d')) {
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+    throw new Error('Chart canvas not available');
+  }
+
   if (chartInstance) {
     chartInstance.destroy();
     chartInstance = null;

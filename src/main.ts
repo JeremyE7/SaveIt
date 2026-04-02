@@ -261,12 +261,14 @@ const loadHomeView = () => {
   const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
   const usernameEl = document.getElementById('dashboard-username');
   const avatarEl = document.getElementById('dashboard-avatar');
+  const authFallbackName = (currentAuthUser?.displayName || currentAuthUser?.email?.split('@')[0] || '').trim();
+  const resolvedHomeName = (userSettings.name || authFallbackName || 'SaveIt').trim();
   
   if (usernameEl) {
-    usernameEl.textContent = userSettings.name || 'SaveIt';
+    usernameEl.textContent = resolvedHomeName;
   }
-  if (avatarEl && userSettings.name) {
-    const initial = userSettings.name.charAt(0).toUpperCase();
+  if (avatarEl && resolvedHomeName) {
+    const initial = resolvedHomeName.charAt(0).toUpperCase();
     avatarEl.innerHTML = `<span class="dashboard-avatar-initial">${initial}</span>`;
     avatarEl.style.background = 'rgba(0, 229, 255, 0.24)';
   } else if (avatarEl) {
@@ -1603,7 +1605,7 @@ const loadUserSettings = () => {
     emailInput.readOnly = Boolean(currentAuthUser);
   }
 
-  const resolvedName = settings.name || currentAuthUser?.displayName || 'SaveIt User';
+  const resolvedName = settings.name || currentAuthUser?.displayName || currentAuthUser?.email?.split('@')[0] || 'SaveIt User';
   if (displayNameEl) {
     displayNameEl.textContent = resolvedName;
   }

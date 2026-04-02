@@ -271,6 +271,9 @@ export const deleteExpense = (id: string) => {
 };
 
 export const drawExpenses = () => {
+  const chartEl = document.getElementById('chart');
+  if (!chartEl) return;
+
   const expenses = getAllExpenses();
   const labels: string[] = [];
   const data: number[] = [];
@@ -313,5 +316,9 @@ export const drawExpenses = () => {
     }
   });
 
-  generatePieChart(labels, data, colors);
+  try {
+    generatePieChart(labels, data, colors);
+  } catch {
+    // No bloquear flujo principal si el canvas no existe en la vista actual
+  }
 };

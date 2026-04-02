@@ -140,18 +140,19 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
   if (!uid) {
     currentSyncUid = null;
     syncDocRef = null;
-    emitSyncStatus('offline');
+    // Sin sesión no es un error de conexión; app opera en modo local
+    emitSyncStatus('synced');
     return;
   }
 
   if (!isFirebaseEnabled()) {
-    emitSyncStatus('offline');
+    emitSyncStatus('error');
     return;
   }
 
   const db = getFirebaseDb();
   if (!db) {
-    emitSyncStatus('offline');
+    emitSyncStatus('error');
     return;
   }
 
@@ -190,7 +191,7 @@ export const initializeFirestoreSync = async (uid?: string): Promise<void> => {
 
     emitSyncStatus('synced');
   } catch {
-    emitSyncStatus('offline');
+    emitSyncStatus(typeof navigator !== 'undefined' && navigator.onLine ? 'error' : 'offline');
     // Si Firestore falla, app sigue funcionando local
   }
 };
