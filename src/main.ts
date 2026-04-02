@@ -1577,7 +1577,8 @@ const setupAuthStateSync = async (): Promise<void> => {
     subscribeAuthState(async (user) => {
       currentAuthUser = user;
       updateAuthUi();
-      await syncOneSignalIdentity(user);
+      // OneSignal no debe bloquear sincronización principal de datos
+      void syncOneSignalIdentity(user);
 
       if (user) {
         await initializeFirestoreSync(user.uid);
