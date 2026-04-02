@@ -32,7 +32,23 @@ const syncOneSignalIdentity = async (user: User | null): Promise<void> => {
     try {
       if (user) {
         if (typeof oneSignal.login === 'function') {
-          await oneSignal.login(user.uid);
+          try {
+            await oneSignal.login(user.uid);
+          } catch (error) {
+            const message = String((error as { message?: string })?.message || error || '');
+            const isAliasConflict = message.includes('user-2') || message.includes('claimed by another User');
+
+            if (!isAliasConflict) {
+              throw error;
+            }
+
+            // Recuperación ante conflicto de alias: limpiar identidad local y reintentar login
+            if (typeof oneSignal.logout === 'function') {
+              await oneSignal.logout();
+            }
+
+            await oneSignal.login(user.uid);
+          }
         }
       }
     } catch {
