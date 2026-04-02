@@ -1001,15 +1001,19 @@ const updateSubscriptionNotificationStatus = async () => {
   const enableBtn = document.getElementById('btn-enable-subscription-notifications') as HTMLButtonElement;
   if (!statusEl) return;
 
+  const setEnableButton = (config: { visible: boolean; disabled: boolean; text: string }) => {
+    if (!enableBtn) return;
+    enableBtn.style.display = config.visible ? 'inline-flex' : 'none';
+    enableBtn.disabled = config.disabled;
+    enableBtn.textContent = config.text;
+  };
+
   if (!currentAuthUser) {
     statusEl.textContent = 'Estado: inicia sesión para activar notificaciones';
     if (profilePushEl) {
       profilePushEl.textContent = 'Push: desactivadas. Inicia sesión para vincular OneSignal y recibir alertas en este dispositivo.';
     }
-    if (enableBtn) {
-      enableBtn.disabled = true;
-      enableBtn.textContent = 'Inicia sesión';
-    }
+    setEnableButton({ visible: false, disabled: true, text: 'Inicia sesión' });
     return;
   }
 
@@ -1020,10 +1024,7 @@ const updateSubscriptionNotificationStatus = async () => {
     if (profilePushEl) {
       profilePushEl.textContent = 'Push: no disponible en este navegador.';
     }
-    if (enableBtn) {
-      enableBtn.disabled = true;
-      enableBtn.textContent = 'No disponible';
-    }
+    setEnableButton({ visible: false, disabled: true, text: 'No disponible' });
     return;
   }
 
@@ -1035,47 +1036,32 @@ const updateSubscriptionNotificationStatus = async () => {
       if (profilePushEl) {
         profilePushEl.textContent = 'Push: activadas y conectadas con OneSignal en este dispositivo.';
       }
-      if (enableBtn) {
-        enableBtn.disabled = true;
-        enableBtn.textContent = 'Activadas';
-      }
+      setEnableButton({ visible: false, disabled: true, text: 'Activadas' });
     } else if (oneSignalState === 'not-subscribed') {
       statusEl.textContent = 'Estado: permiso concedido, falta suscripción push';
       if (profilePushEl) {
         profilePushEl.textContent = 'Push: permiso concedido, pero este dispositivo aún no está suscrito en OneSignal.';
       }
-      if (enableBtn) {
-        enableBtn.disabled = false;
-        enableBtn.textContent = 'Reconectar';
-      }
+      setEnableButton({ visible: true, disabled: false, text: 'Reconectar' });
     } else {
       statusEl.textContent = 'Estado: permiso concedido, validando OneSignal...';
       if (profilePushEl) {
         profilePushEl.textContent = 'Push: validando conexión con OneSignal...';
       }
-      if (enableBtn) {
-        enableBtn.disabled = false;
-        enableBtn.textContent = 'Reintentar';
-      }
+      setEnableButton({ visible: true, disabled: false, text: 'Reintentar' });
     }
   } else if (state === 'denied') {
     statusEl.textContent = 'Estado: bloqueadas';
     if (profilePushEl) {
       profilePushEl.textContent = 'Push: bloqueadas por el navegador. Debes habilitarlas desde configuración del sitio.';
     }
-    if (enableBtn) {
-      enableBtn.disabled = true;
-      enableBtn.textContent = 'Bloqueadas';
-    }
+    setEnableButton({ visible: false, disabled: true, text: 'Bloqueadas' });
   } else {
     statusEl.textContent = 'Estado: pendiente de permiso';
     if (profilePushEl) {
       profilePushEl.textContent = 'Push: pendientes. Actívalas para recibir recordatorios de suscripciones.';
     }
-    if (enableBtn) {
-      enableBtn.disabled = false;
-      enableBtn.textContent = 'Activar';
-    }
+    setEnableButton({ visible: true, disabled: false, text: 'Activar' });
   }
 };
 
