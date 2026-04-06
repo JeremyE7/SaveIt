@@ -158,30 +158,30 @@
 
       <!-- STATS VIEW -->
       <div id="stats-view" class="view-container view-hidden">
-        <header class="stats-header">
-          <div class="stats-header-left">
-            <button id="btn-back-stats" class="stats-back-btn">
+        <header class="app-view-header app-view-header--stats stats-header">
+          <div class="app-view-header-left stats-header-left">
+            <button id="btn-back-stats" class="app-view-back-btn stats-back-btn">
               <span class="material-symbols-outlined">arrow_back</span>
             </button>
-            <h1 class="stats-title">Estadísticas</h1>
+            <h1 class="app-view-title stats-title">Estadísticas</h1>
           </div>
-          <div class="stats-header-actions">
+          <div class="app-view-header-actions stats-header-actions">
             <button
               id="btn-export-stats"
-              class="icon-btn"
+              class="icon-btn app-view-icon-btn"
               title="Exportar / calendario"
             >
               <span class="material-symbols-outlined">calendar_today</span>
             </button>
             <button
               id="btn-import-stats"
-              class="icon-btn hidden"
+              class="icon-btn app-view-icon-btn hidden"
               title="Importar"
             >
               <span class="material-symbols-outlined">upload</span>
             </button>
             <div
-              class="stats-header-avatar"
+              class="app-view-header-avatar stats-header-avatar"
               id="stats-header-avatar"
               aria-hidden="true"
             >
@@ -360,23 +360,23 @@
 
       <!-- BUDGETS VIEW -->
       <div id="budgets-view" class="view-container view-hidden">
-        <header class="stats-header">
-          <div class="budgets-header-left">
-            <button id="btn-back-budgets" class="stats-back-btn">
+        <header class="app-view-header app-view-header--budgets stats-header">
+          <div class="app-view-header-left budgets-header-left">
+            <button id="btn-back-budgets" class="app-view-back-btn stats-back-btn">
               <span class="material-symbols-outlined">arrow_back</span>
             </button>
-            <h1 class="stats-title">Presupuestos</h1>
+            <h1 class="app-view-title stats-title">Presupuestos</h1>
           </div>
-          <div class="stats-header-actions">
+          <div class="app-view-header-actions stats-header-actions">
             <button
               id="btn-open-subscriptions-view"
-              class="icon-btn"
+              class="icon-btn app-view-icon-btn"
               title="Gestionar suscripciones"
             >
               <span class="material-symbols-outlined">subscriptions</span>
             </button>
             <div
-              class="stats-header-avatar"
+              class="app-view-header-avatar stats-header-avatar"
               id="budgets-header-avatar"
               aria-hidden="true"
             >
@@ -482,16 +482,19 @@
 
       <!-- SUBSCRIPTIONS VIEW -->
       <div id="subscriptions-view" class="view-container view-hidden">
-        <header class="stats-header">
-          <div class="subscriptions-header-left">
-            <button id="btn-back-subscriptions" class="stats-back-btn">
+        <header class="app-view-header app-view-header--subscriptions stats-header">
+          <div class="app-view-header-left subscriptions-header-left">
+            <button
+              id="btn-back-subscriptions"
+              class="app-view-back-btn stats-back-btn"
+            >
               <span class="material-symbols-outlined">arrow_back</span>
             </button>
-            <h1 class="stats-title">Suscripciones</h1>
+            <h1 class="app-view-title stats-title">Suscripciones</h1>
           </div>
           <button
             id="btn-open-subscription-sheet"
-            class="subscriptions-add-btn"
+            class="app-view-primary-action subscriptions-add-btn"
             title="Agregar suscripción"
           >
             <span class="material-symbols-outlined">add</span>
@@ -909,16 +912,19 @@
 
       <!-- PROFILE VIEW -->
       <div id="profile-view" class="view-container view-hidden">
-        <header class="stats-header">
-          <div class="profile-header-left">
-            <div class="profile-header-avatar" id="profile-header-avatar">
+        <header class="app-view-header app-view-header--profile stats-header">
+          <div class="app-view-header-left profile-header-left">
+            <div
+              class="app-view-header-avatar profile-header-avatar"
+              id="profile-header-avatar"
+            >
               S
             </div>
-            <h1 class="stats-title">Mi Cuenta</h1>
+            <h1 class="app-view-title stats-title">Mi Cuenta</h1>
           </div>
           <button
             id="btn-open-notifications-profile"
-            class="icon-btn"
+            class="icon-btn app-view-icon-btn"
             title="Notificaciones"
           >
             <span class="material-symbols-outlined">notifications</span>

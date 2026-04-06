@@ -2365,6 +2365,7 @@ li span {
     color: #ef4444;
 }
 
+.app-view-header,
 .stats-header {
     display: flex;
     align-items: center;
@@ -2374,6 +2375,13 @@ li span {
     border-bottom: 1px solid var(--color-border);
 }
 
+.app-view-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.app-view-title,
 .stats-title {
     display: flex;
     align-items: center;
@@ -2387,6 +2395,7 @@ li span {
     color: var(--color-primary);
 }
 
+.app-view-back-btn,
 .stats-back-btn {
     width: 40px;
     height: 40px;
@@ -2400,9 +2409,21 @@ li span {
     cursor: pointer;
 }
 
+.app-view-header-actions,
 .stats-header-actions {
     display: flex;
+    align-items: center;
     gap: 8px;
+}
+
+.app-view-header-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 700;
 }
 
 .icon-btn {
@@ -2619,46 +2640,59 @@ li span {
     background: var(--color-bg-primary);
 }
 
-#stats-view .stats-header {
+#stats-view .app-view-header,
+#budgets-view .app-view-header,
+#subscriptions-view .app-view-header,
+#profile-view .app-view-header {
     min-height: 64px;
     padding: 12px 24px;
     border-bottom: none;
+}
+
+#stats-view .app-view-header,
+#budgets-view .app-view-header {
     background: var(--color-bg-primary);
 }
 
-#stats-view .stats-header-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+#subscriptions-view .app-view-header,
+#profile-view .app-view-header {
+    background: var(--color-bg-secondary);
 }
 
-#stats-view .stats-back-btn {
+#stats-view .app-view-back-btn,
+#budgets-view .app-view-back-btn,
+#subscriptions-view .app-view-back-btn {
     border-radius: 999px;
     border: none;
-    background: var(--color-bg-secondary);
     color: var(--color-primary-light);
 }
 
-#stats-view .stats-title {
+#stats-view .app-view-back-btn,
+#budgets-view .app-view-back-btn {
+    background: var(--color-bg-secondary);
+}
+
+#subscriptions-view .app-view-back-btn {
+    background: transparent;
+}
+
+#stats-view .app-view-title,
+#budgets-view .app-view-title,
+#subscriptions-view .app-view-title,
+#profile-view .app-view-title {
     font-family: var(--font-primary);
     font-size: 22px;
     font-weight: 800;
     color: var(--color-primary-light);
 }
 
-#stats-view .stats-header-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+#stats-view .app-view-header-avatar,
+#budgets-view .app-view-header-avatar {
     border: 1px solid rgba(132, 147, 150, 0.22);
-    display: grid;
-    place-items: center;
     color: var(--color-primary-light);
-    font-weight: 700;
-    font-size: 13px;
 }
 
-#stats-view .icon-btn {
+#stats-view .app-view-icon-btn {
     border: none;
     background: transparent;
     color: var(--color-text-muted);
@@ -2972,49 +3006,10 @@ li span {
     background: var(--color-bg-primary);
 }
 
-#budgets-view .stats-header {
-    min-height: 64px;
-    padding: 12px 24px;
-    border-bottom: none;
-    background: var(--color-bg-primary);
-}
-
-#budgets-view .budgets-header-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-#budgets-view .stats-back-btn {
-    border-radius: 999px;
-    border: none;
-    background: var(--color-bg-secondary);
-    color: var(--color-primary-light);
-}
-
-#budgets-view .stats-title {
-    font-family: var(--font-primary);
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--color-primary-light);
-}
-
-#budgets-view .icon-btn {
+#budgets-view .app-view-icon-btn {
     border: none;
     background: transparent;
     color: var(--color-text-secondary);
-}
-
-#budgets-view .stats-header-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1px solid rgba(132, 147, 150, 0.22);
-    display: grid;
-    place-items: center;
-    color: var(--color-primary-light);
-    font-weight: 700;
-    font-size: 13px;
 }
 
 #budgets-view .budgets-layout {
@@ -3239,33 +3234,6 @@ li span {
 
 #subscriptions-view {
     background: var(--color-bg-primary);
-}
-
-#subscriptions-view .stats-header {
-    min-height: 64px;
-    padding: 12px 24px;
-    border-bottom: none;
-    background: var(--color-bg-secondary);
-}
-
-#subscriptions-view .subscriptions-header-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-#subscriptions-view .stats-back-btn {
-    border-radius: 999px;
-    border: none;
-    background: transparent;
-    color: var(--color-primary-light);
-}
-
-#subscriptions-view .stats-title {
-    font-family: var(--font-primary);
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--color-primary-light);
 }
 
 #subscriptions-view .subscriptions-add-btn {
@@ -3825,40 +3793,17 @@ li span {
     background: var(--color-bg-primary);
 }
 
-#profile-view .stats-header {
-    min-height: 64px;
-    padding: 12px 24px;
-    border-bottom: none;
-    background: var(--color-bg-secondary);
-}
-
-#profile-view .profile-header-left {
-    display: flex;
-    align-items: center;
+#profile-view .app-view-header-left {
     gap: 12px;
 }
 
-#profile-view .profile-header-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+#profile-view .app-view-header-avatar {
     border: 1px solid rgba(195, 245, 255, 0.2);
-    display: grid;
-    place-items: center;
     color: var(--color-primary-light);
-    font-size: 13px;
-    font-weight: 700;
     background: rgba(51, 53, 57, 0.6);
 }
 
-#profile-view .stats-title {
-    font-family: var(--font-primary);
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--color-primary-light);
-}
-
-#profile-view .icon-btn {
+#profile-view .app-view-icon-btn {
     border: none;
     background: transparent;
     color: var(--color-primary-light);
