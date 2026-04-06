@@ -7,7 +7,7 @@ import { checkBudgetAlertsOnLoad, renderBudgetsList, openBudgetConfigModal, clos
 import { getCurrentMonthTotal, getCategoryDistribution, getCurrentMonthIncomeTotal, getExpensesByMonth, getIncomesByMonth, getMonthTotal, getIncomeMonthTotal, getAllExpensesTotal, getAllIncomesTotal, getTodayLocalInputDateValue } from "./utils/general";
 import { expenseGroups, type ExpenseGroup } from "./types/ExpenseGroups";
 import { incomeCategories, type IncomeCategory } from "./types/IncomeCategories";
-import { initSwipeExpense, initSwipeIncome, initSwipeCategory, initSwipeSubscription, openEditModal, openEditIncomeModal } from "./utils/swipe";
+import { initSwipeExpense, initSwipeIncome, initSwipeCategory, initSwipeSubscription, initBottomSheetDragToCloseById, openEditModal, openEditIncomeModal } from "./utils/swipe";
 import { exportData, importData } from "./features/importExport";
 import { confirmDeleteIncome } from "./features/incomes";
 import { confirmDeleteSubscription, getAllSubscriptions, getNextChargeDate, getNotificationPermissionState, getOneSignalSubscriptionState, processSubscriptionsForToday, requestSubscriptionNotificationPermission, toggleSubscriptionStatus, upsertSubscription } from "./features/subscriptions";
@@ -2831,6 +2831,14 @@ function setupEventListeners() {
   document.getElementById('btn-save-category')?.addEventListener('click', saveCategory);
 
   document.getElementById('alert-adjust')?.addEventListener('click', () => showView('budgets'));
+
+  initBottomSheetDragToCloseById('bottom-sheet-overlay', closeBottomSheet);
+  initBottomSheetDragToCloseById('income-sheet-overlay', closeIncomeSheet);
+  initBottomSheetDragToCloseById('budget-sheet-overlay', closeBudgetConfigModal);
+  initBottomSheetDragToCloseById('subscription-sheet-overlay', closeSubscriptionSheet);
+  initBottomSheetDragToCloseById('notifications-sheet-overlay', closeNotificationsSheet);
+  initBottomSheetDragToCloseById('password-sheet-overlay', closePasswordSheet);
+  initBottomSheetDragToCloseById('category-modal-overlay', closeCategoryModal);
 }
 
 window.addEventListener('incomeDeleted', () => {

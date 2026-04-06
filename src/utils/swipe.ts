@@ -4,6 +4,160 @@ import type { Subscription } from "../types/Subscription";
 import { toInputDateValue } from "./general";
 
 const SWIPE_THRESHOLD = 75;
+const SWIPE_DELETE_THRESHOLD = 120;
+const SWIPE_DIRECTION_LOCK_THRESHOLD = 12;
+
+const SHEET_CLOSE_DISTANCE_THRESHOLD = 120;
+const SHEET_CLOSE_VELOCITY_THRESHOLD = 0.55;
+const SHEET_CLOSE_DURATION_MS = 220;
+const SHEET_SNAP_DURATION_MS = 250;
+
+type GestureDirectionLock = 'horizontal' | 'vertical' | null;
+type GestureEvent = TouchEvent | MouseEvent;
+
+interface HorizontalSwipeHandlers {
+  onHorizontalMove: (diffX: number) => void;
+  onHorizontalEnd: (diffX: number) => void;
+  onGestureCancel?: () => void;
+}
+
+interface BottomSheetDragToCloseOptions {
+  overlay: HTMLElement;
+  onClose: () => void;
+  handleSelector?: string;
+  sheetSelector?: string;
+}
+
+const getGesturePoint = (event: GestureEvent): { x: number; y: number } | null => {
+  if ('touches' in event) {
+    const touch = event.touches[0] ?? event.changedTouches[0];
+    if (!touch) return null;
+    return { x: touch.clientX, y: touch.clientY };
+  }
+
+  return { x: event.clientX, y: event.clientY };
+};
+
+const isPrimaryMouseButton = (event: GestureEvent): boolean => {
+  if ('touches' in event) return true;
+  return event.button === 0;
+};
+
+const setupHorizontalSwipeGesture = (
+  element: HTMLElement,
+  handlers: HorizontalSwipeHandlers
+) => {
+  let startX = 0;
+  let startY = 0;
+  let currentX = 0;
+  let currentY = 0;
+  let isDragging = false;
+  let directionLock: GestureDirectionLock = null;
+
+  const handleStart = (event: GestureEvent) => {
+    if (!isPrimaryMouseButton(event)) return;
+
+    const point = getGesturePoint(event);
+    if (!point) return;
+
+    startX = point.x;
+    startY = point.y;
+    currentX = point.x;
+    currentY = point.y;
+    isDragging = true;
+    directionLock = null;
+    element.style.transition = 'none';
+  };
+
+  const handleMove = (event: GestureEvent) => {
+    if (!isDragging) return;
+
+    const point = getGesturePoint(event);
+    if (!point) return;
+
+    currentX = point.x;
+    currentY = point.y;
+
+    const diffX = currentX - startX;
+    const diffY = currentY - startY;
+
+    if (!directionLock) {
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
+
+      if (absX >= SWIPE_DIRECTION_LOCK_THRESHOLD || absY >= SWIPE_DIRECTION_LOCK_THRESHOLD) {
+        directionLock = absX >= absY ? 'horizontal' : 'vertical';
+      }
+    }
+
+    if (directionLock === 'vertical') {
+      handlers.onGestureCancel?.();
+      return;
+    }
+
+    if (directionLock !== 'horizontal') {
+      return;
+    }
+
+    if ('touches' in event) {
+      event.preventDefault();
+    }
+
+    handlers.onHorizontalMove(diffX);
+  };
+
+  const handleEnd = () => {
+    if (!isDragging) return;
+
+    isDragging = false;
+    const diffX = currentX - startX;
+
+    if (directionLock === 'horizontal') {
+      handlers.onHorizontalEnd(diffX);
+    } else {
+      handlers.onGestureCancel?.();
+    }
+
+    directionLock = null;
+  };
+
+  element.addEventListener('touchstart', handleStart, { passive: true });
+  element.addEventListener('touchmove', handleMove, { passive: false });
+  element.addEventListener('touchend', handleEnd);
+  element.addEventListener('touchcancel', handleEnd);
+
+  element.addEventListener('mousedown', handleStart);
+  document.addEventListener('mousemove', handleMove as EventListener);
+  document.addEventListener('mouseup', handleEnd);
+};
+
+const finalizeSwipeGesture = (element: HTMLElement) => {
+  element.style.transition = 'transform 0.3s ease';
+  element.style.transform = '';
+  element.style.removeProperty('--swipe-action');
+  hideSwipeIndicator(element);
+};
+
+const clearSwipeGestureState = (element: HTMLElement) => {
+  element.style.transform = '';
+  element.style.removeProperty('--swipe-action');
+  hideSwipeIndicator(element);
+};
+
+const applySwipeVisualState = (
+  element: HTMLElement,
+  diff: number,
+  action: 'edit' | 'delete' | null
+) => {
+  if (!action) {
+    element.style.transform = '';
+    element.style.removeProperty('--swipe-action');
+    return;
+  }
+
+  element.style.transform = `translateX(${diff}px)`;
+  element.style.setProperty('--swipe-action', action);
+};
 
 export const initSwipeExpense = (
   element: HTMLElement,
@@ -11,60 +165,31 @@ export const initSwipeExpense = (
   onEdit: (expense: Expense) => void,
   onDelete: (id: string) => void
 ) => {
-  let startX = 0;
-  let currentX = 0;
-  let isDragging = false;
-
-  const handleTouchStart = (e: TouchEvent | MouseEvent) => {
-    startX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    currentX = startX;
-    isDragging = true;
-    element.style.transition = 'none';
-  };
-
-  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
-    if (!isDragging) return;
-    
-    currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    const diff = currentX - startX;
-    
-    if (diff > 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'edit');
-    } else if (diff < 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'delete');
-    }
-
-    updateSwipeIndicator(element, diff);
-  };
-
-  const handleTouchEnd = () => {
-    if (!isDragging) return;
-    isDragging = false;
-    
-    const diff = currentX - startX;
-    element.style.transition = 'transform 0.3s ease';
-    element.style.transform = '';
-    element.style.removeProperty('--swipe-action');
-    hideSwipeIndicator(element);
-
-    if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+  setupHorizontalSwipeGesture(element, {
+    onHorizontalMove: (diff) => {
       if (diff > 0) {
-        onEdit(expense);
+        applySwipeVisualState(element, diff, 'edit');
+      } else if (diff < 0) {
+        applySwipeVisualState(element, diff, 'delete');
       } else {
-        onDelete(expense.id);
+        applySwipeVisualState(element, diff, null);
       }
-    }
-  };
 
-  element.addEventListener('touchstart', handleTouchStart, { passive: true });
-  element.addEventListener('touchmove', handleTouchMove, { passive: true });
-  element.addEventListener('touchend', handleTouchEnd);
-  
-  element.addEventListener('mousedown', handleTouchStart);
-  document.addEventListener('mousemove', handleTouchMove as EventListener);
-  document.addEventListener('mouseup', handleTouchEnd);
+      updateSwipeIndicator(element, diff);
+    },
+    onHorizontalEnd: (diff) => {
+      finalizeSwipeGesture(element);
+
+      if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+        if (diff > 0) {
+          onEdit(expense);
+        } else {
+          onDelete(expense.id);
+        }
+      }
+    },
+    onGestureCancel: () => clearSwipeGestureState(element),
+  });
 };
 
 export const initSwipeIncome = (
@@ -73,60 +198,31 @@ export const initSwipeIncome = (
   onEdit: (income: Income) => void,
   onDelete: (id: string) => void
 ) => {
-  let startX = 0;
-  let currentX = 0;
-  let isDragging = false;
-
-  const handleTouchStart = (e: TouchEvent | MouseEvent) => {
-    startX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    currentX = startX;
-    isDragging = true;
-    element.style.transition = 'none';
-  };
-
-  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
-    if (!isDragging) return;
-    
-    currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    const diff = currentX - startX;
-    
-    if (diff > 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'edit');
-    } else if (diff < 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'delete');
-    }
-
-    updateSwipeIndicator(element, diff);
-  };
-
-  const handleTouchEnd = () => {
-    if (!isDragging) return;
-    isDragging = false;
-    
-    const diff = currentX - startX;
-    element.style.transition = 'transform 0.3s ease';
-    element.style.transform = '';
-    element.style.removeProperty('--swipe-action');
-    hideSwipeIndicator(element);
-
-    if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+  setupHorizontalSwipeGesture(element, {
+    onHorizontalMove: (diff) => {
       if (diff > 0) {
-        onEdit(income);
+        applySwipeVisualState(element, diff, 'edit');
+      } else if (diff < 0) {
+        applySwipeVisualState(element, diff, 'delete');
       } else {
-        onDelete(income.id);
+        applySwipeVisualState(element, diff, null);
       }
-    }
-  };
 
-  element.addEventListener('touchstart', handleTouchStart, { passive: true });
-  element.addEventListener('touchmove', handleTouchMove, { passive: true });
-  element.addEventListener('touchend', handleTouchEnd);
-  
-  element.addEventListener('mousedown', handleTouchStart);
-  document.addEventListener('mousemove', handleTouchMove as EventListener);
-  document.addEventListener('mouseup', handleTouchEnd);
+      updateSwipeIndicator(element, diff);
+    },
+    onHorizontalEnd: (diff) => {
+      finalizeSwipeGesture(element);
+
+      if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+        if (diff > 0) {
+          onEdit(income);
+        } else {
+          onDelete(income.id);
+        }
+      }
+    },
+    onGestureCancel: () => clearSwipeGestureState(element),
+  });
 };
 
 export const initSwipeSubscription = (
@@ -136,66 +232,37 @@ export const initSwipeSubscription = (
   onToggle: (id: string) => void,
   onDelete: (id: string) => void
 ) => {
-  let startX = 0;
-  let currentX = 0;
-  let isDragging = false;
+  setupHorizontalSwipeGesture(element, {
+    onHorizontalMove: (diff) => {
+      if (diff > 0) {
+        applySwipeVisualState(element, diff, 'edit');
+      } else if (diff < 0) {
+        applySwipeVisualState(element, diff, 'delete');
+      } else {
+        applySwipeVisualState(element, diff, null);
+      }
 
-  const handleTouchStart = (e: TouchEvent | MouseEvent) => {
-    startX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    currentX = startX;
-    isDragging = true;
-    element.style.transition = 'none';
-  };
+      updateSubscriptionSwipeIndicator(element, diff, subscription.status);
+    },
+    onHorizontalEnd: (diff) => {
+      finalizeSwipeGesture(element);
 
-  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
-    if (!isDragging) return;
+      if (diff >= SWIPE_THRESHOLD) {
+        onEdit(subscription);
+        return;
+      }
 
-    currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    const diff = currentX - startX;
+      if (diff <= -SWIPE_DELETE_THRESHOLD) {
+        onDelete(subscription.id);
+        return;
+      }
 
-    if (diff > 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'edit');
-    } else if (diff < 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'delete');
-    }
-
-    updateSubscriptionSwipeIndicator(element, diff, subscription.status);
-  };
-
-  const handleTouchEnd = () => {
-    if (!isDragging) return;
-    isDragging = false;
-
-    const diff = currentX - startX;
-    element.style.transition = 'transform 0.3s ease';
-    element.style.transform = '';
-    element.style.removeProperty('--swipe-action');
-    hideSwipeIndicator(element);
-
-    if (diff >= SWIPE_THRESHOLD) {
-      onEdit(subscription);
-      return;
-    }
-
-    if (diff <= -120) {
-      onDelete(subscription.id);
-      return;
-    }
-
-    if (diff <= -SWIPE_THRESHOLD) {
-      onToggle(subscription.id);
-    }
-  };
-
-  element.addEventListener('touchstart', handleTouchStart, { passive: true });
-  element.addEventListener('touchmove', handleTouchMove, { passive: true });
-  element.addEventListener('touchend', handleTouchEnd);
-
-  element.addEventListener('mousedown', handleTouchStart);
-  document.addEventListener('mousemove', handleTouchMove as EventListener);
-  document.addEventListener('mouseup', handleTouchEnd);
+      if (diff <= -SWIPE_THRESHOLD) {
+        onToggle(subscription.id);
+      }
+    },
+    onGestureCancel: () => clearSwipeGestureState(element),
+  });
 };
 
 const updateSubscriptionSwipeIndicator = (
@@ -224,7 +291,7 @@ const updateSubscriptionSwipeIndicator = (
     return;
   }
 
-  if (diff <= -120) {
+  if (diff <= -SWIPE_DELETE_THRESHOLD) {
     indicator.className = 'swipe-indicator swipe-indicator-delete';
     indicator.innerHTML = `
       <span class="material-symbols-outlined">delete</span>
@@ -280,7 +347,7 @@ export const openEditModal = (expense: Expense) => {
   if (!modal) return;
 
   modal.classList.add('active');
-  
+
   const amountInput = document.getElementById('expense-amount') as HTMLInputElement;
   const detailInput = document.getElementById('expense-detail') as HTMLTextAreaElement;
   const categorySelect = document.getElementById('expense-category') as HTMLSelectElement;
@@ -304,7 +371,7 @@ export const openEditIncomeModal = (income: Income) => {
   if (!modal) return;
 
   modal.classList.add('active');
-  
+
   const amountInput = document.getElementById('income-amount') as HTMLInputElement;
   const detailInput = document.getElementById('income-detail') as HTMLTextAreaElement;
   const categorySelect = document.getElementById('income-category') as HTMLSelectElement;
@@ -335,60 +402,31 @@ export const initSwipeBudget = (
   onEdit: (budget: Budget) => void,
   onDelete: (category: string) => void
 ) => {
-  let startX = 0;
-  let currentX = 0;
-  let isDragging = false;
-
-  const handleTouchStart = (e: TouchEvent | MouseEvent) => {
-    startX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    currentX = startX;
-    isDragging = true;
-    element.style.transition = 'none';
-  };
-
-  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
-    if (!isDragging) return;
-    
-    currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    const diff = currentX - startX;
-    
-    if (diff > 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'edit');
-    } else if (diff < 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'delete');
-    }
-
-    updateSwipeIndicator(element, diff);
-  };
-
-  const handleTouchEnd = () => {
-    if (!isDragging) return;
-    isDragging = false;
-    
-    const diff = currentX - startX;
-    element.style.transition = 'transform 0.3s ease';
-    element.style.transform = '';
-    element.style.removeProperty('--swipe-action');
-    hideSwipeIndicator(element);
-
-    if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+  setupHorizontalSwipeGesture(element, {
+    onHorizontalMove: (diff) => {
       if (diff > 0) {
-        onEdit(budget);
+        applySwipeVisualState(element, diff, 'edit');
+      } else if (diff < 0) {
+        applySwipeVisualState(element, diff, 'delete');
       } else {
-        onDelete(budget.category);
+        applySwipeVisualState(element, diff, null);
       }
-    }
-  };
 
-  element.addEventListener('touchstart', handleTouchStart, { passive: true });
-  element.addEventListener('touchmove', handleTouchMove, { passive: true });
-  element.addEventListener('touchend', handleTouchEnd);
-  
-  element.addEventListener('mousedown', handleTouchStart);
-  document.addEventListener('mousemove', handleTouchMove as EventListener);
-  document.addEventListener('mouseup', handleTouchEnd);
+      updateSwipeIndicator(element, diff);
+    },
+    onHorizontalEnd: (diff) => {
+      finalizeSwipeGesture(element);
+
+      if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+        if (diff > 0) {
+          onEdit(budget);
+        } else {
+          onDelete(budget.category);
+        }
+      }
+    },
+    onGestureCancel: () => clearSwipeGestureState(element),
+  });
 };
 
 export const initSwipeBudgetEditOnly = (
@@ -396,10 +434,6 @@ export const initSwipeBudgetEditOnly = (
   budget: Budget,
   onEdit: (budget: Budget) => void
 ) => {
-  let startX = 0;
-  let currentX = 0;
-  let isDragging = false;
-
   const showEditIndicator = () => {
     let indicator = element.querySelector('.swipe-indicator') as HTMLElement;
     if (!indicator) {
@@ -415,56 +449,28 @@ export const initSwipeBudgetEditOnly = (
     `;
   };
 
-  const handleTouchStart = (e: TouchEvent | MouseEvent) => {
-    startX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    currentX = startX;
-    isDragging = true;
-    element.style.transition = 'none';
-  };
-
-  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
-    if (!isDragging) return;
-
-    currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    const diff = currentX - startX;
-
-    if (diff > 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'edit');
-      if (Math.abs(diff) >= SWIPE_THRESHOLD) {
-        showEditIndicator();
+  setupHorizontalSwipeGesture(element, {
+    onHorizontalMove: (diff) => {
+      if (diff > 0) {
+        applySwipeVisualState(element, diff, 'edit');
+        if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+          showEditIndicator();
+        } else {
+          hideSwipeIndicator(element);
+        }
       } else {
-        hideSwipeIndicator(element);
+        clearSwipeGestureState(element);
       }
-    } else {
-      element.style.transform = '';
-      element.style.removeProperty('--swipe-action');
-      hideSwipeIndicator(element);
-    }
-  };
+    },
+    onHorizontalEnd: (diff) => {
+      finalizeSwipeGesture(element);
 
-  const handleTouchEnd = () => {
-    if (!isDragging) return;
-    isDragging = false;
-
-    const diff = currentX - startX;
-    element.style.transition = 'transform 0.3s ease';
-    element.style.transform = '';
-    element.style.removeProperty('--swipe-action');
-    hideSwipeIndicator(element);
-
-    if (diff >= SWIPE_THRESHOLD) {
-      onEdit(budget);
-    }
-  };
-
-  element.addEventListener('touchstart', handleTouchStart, { passive: true });
-  element.addEventListener('touchmove', handleTouchMove, { passive: true });
-  element.addEventListener('touchend', handleTouchEnd);
-
-  element.addEventListener('mousedown', handleTouchStart);
-  document.addEventListener('mousemove', handleTouchMove as EventListener);
-  document.addEventListener('mouseup', handleTouchEnd);
+      if (diff >= SWIPE_THRESHOLD) {
+        onEdit(budget);
+      }
+    },
+    onGestureCancel: () => clearSwipeGestureState(element),
+  });
 };
 
 export const openEditBudgetModal = (budget: Budget) => {
@@ -472,7 +478,7 @@ export const openEditBudgetModal = (budget: Budget) => {
   if (!modal) return;
 
   modal.classList.add('active');
-  
+
   const amountInput = document.getElementById('budget-amount') as HTMLInputElement;
   const categorySelect = document.getElementById('budget-category') as HTMLSelectElement;
 
@@ -496,58 +502,183 @@ export const initSwipeCategory = (
   onEdit: (id: string) => void,
   onDelete: (id: string) => void
 ) => {
-  let startX = 0;
-  let currentX = 0;
-  let isDragging = false;
-
-  const handleTouchStart = (e: TouchEvent | MouseEvent) => {
-    startX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    currentX = startX;
-    isDragging = true;
-    element.style.transition = 'none';
-  };
-
-  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
-    if (!isDragging) return;
-    
-    currentX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    const diff = currentX - startX;
-    
-    if (diff > 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'edit');
-    } else if (diff < 0) {
-      element.style.transform = `translateX(${diff}px)`;
-      element.style.setProperty('--swipe-action', 'delete');
-    }
-
-    updateSwipeIndicator(element, diff);
-  };
-
-  const handleTouchEnd = () => {
-    if (!isDragging) return;
-    isDragging = false;
-    
-    const diff = currentX - startX;
-    element.style.transition = 'transform 0.3s ease';
-    element.style.transform = '';
-    element.style.removeProperty('--swipe-action');
-    hideSwipeIndicator(element);
-
-    if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+  setupHorizontalSwipeGesture(element, {
+    onHorizontalMove: (diff) => {
       if (diff > 0) {
-        onEdit(category.id);
+        applySwipeVisualState(element, diff, 'edit');
+      } else if (diff < 0) {
+        applySwipeVisualState(element, diff, 'delete');
       } else {
-        onDelete(category.id);
+        applySwipeVisualState(element, diff, null);
+      }
+
+      updateSwipeIndicator(element, diff);
+    },
+    onHorizontalEnd: (diff) => {
+      finalizeSwipeGesture(element);
+
+      if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+        if (diff > 0) {
+          onEdit(category.id);
+        } else {
+          onDelete(category.id);
+        }
+      }
+    },
+    onGestureCancel: () => clearSwipeGestureState(element),
+  });
+};
+
+export const initBottomSheetDragToClose = ({
+  overlay,
+  onClose,
+  handleSelector = '.bottom-sheet-handle',
+  sheetSelector = '.bottom-sheet',
+}: BottomSheetDragToCloseOptions) => {
+  const sheet = overlay.querySelector<HTMLElement>(sheetSelector);
+  const handle = overlay.querySelector<HTMLElement>(handleSelector);
+
+  if (!sheet || !handle) return;
+
+  let startX = 0;
+  let startY = 0;
+  let currentX = 0;
+  let currentY = 0;
+  let isDragging = false;
+  let directionLock: GestureDirectionLock = null;
+  let lastMoveAt = 0;
+  let lastMoveY = 0;
+  let velocityY = 0;
+
+  const clearInlineStyles = () => {
+    overlay.style.removeProperty('transition');
+    overlay.style.removeProperty('opacity');
+    sheet.style.removeProperty('transition');
+    sheet.style.removeProperty('transform');
+  };
+
+  const handleStart = (event: GestureEvent) => {
+    if (!overlay.classList.contains('active')) return;
+    if (!isPrimaryMouseButton(event)) return;
+
+    const point = getGesturePoint(event);
+    if (!point) return;
+
+    startX = point.x;
+    startY = point.y;
+    currentX = point.x;
+    currentY = point.y;
+    isDragging = true;
+    directionLock = null;
+    velocityY = 0;
+    lastMoveAt = Date.now();
+    lastMoveY = point.y;
+
+    overlay.style.transition = 'none';
+    sheet.style.transition = 'none';
+  };
+
+  const handleMove = (event: GestureEvent) => {
+    if (!isDragging) return;
+
+    const point = getGesturePoint(event);
+    if (!point) return;
+
+    currentX = point.x;
+    currentY = point.y;
+
+    const diffX = currentX - startX;
+    const diffY = currentY - startY;
+
+    if (!directionLock) {
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
+
+      if (absX >= SWIPE_DIRECTION_LOCK_THRESHOLD || absY >= SWIPE_DIRECTION_LOCK_THRESHOLD) {
+        directionLock = absY >= absX ? 'vertical' : 'horizontal';
       }
     }
+
+    if (directionLock !== 'vertical') {
+      return;
+    }
+
+    if ('touches' in event) {
+      event.preventDefault();
+    }
+
+    const now = Date.now();
+    const elapsed = now - lastMoveAt;
+    if (elapsed > 0) {
+      velocityY = (currentY - lastMoveY) / elapsed;
+      lastMoveAt = now;
+      lastMoveY = currentY;
+    }
+
+    const translateY = Math.max(0, diffY);
+    sheet.style.transform = `translateX(-50%) translateY(${translateY}px)`;
+
+    const sheetHeight = sheet.offsetHeight || 1;
+    const progress = Math.min(translateY / sheetHeight, 1);
+    overlay.style.opacity = String(Math.max(0.2, 1 - progress * 0.8));
   };
 
-  element.addEventListener('touchstart', handleTouchStart, { passive: true });
-  element.addEventListener('touchmove', handleTouchMove, { passive: true });
-  element.addEventListener('touchend', handleTouchEnd);
-  
-  element.addEventListener('mousedown', handleTouchStart);
-  document.addEventListener('mousemove', handleTouchMove as EventListener);
-  document.addEventListener('mouseup', handleTouchEnd);
+  const handleEnd = () => {
+    if (!isDragging) return;
+
+    isDragging = false;
+    const dragDistance = Math.max(0, currentY - startY);
+    const shouldClose = directionLock === 'vertical' && (
+      dragDistance >= SHEET_CLOSE_DISTANCE_THRESHOLD
+      || (velocityY >= SHEET_CLOSE_VELOCITY_THRESHOLD && dragDistance >= SWIPE_DIRECTION_LOCK_THRESHOLD)
+    );
+
+    directionLock = null;
+    velocityY = 0;
+
+    if (shouldClose) {
+      overlay.style.transition = `opacity ${SHEET_CLOSE_DURATION_MS}ms ease-out`;
+      sheet.style.transition = `transform ${SHEET_CLOSE_DURATION_MS}ms ease-out`;
+      overlay.style.opacity = '0';
+      sheet.style.transform = 'translateX(-50%) translateY(100%)';
+
+      window.setTimeout(() => {
+        clearInlineStyles();
+        onClose();
+      }, SHEET_CLOSE_DURATION_MS);
+
+      return;
+    }
+
+    overlay.style.transition = `opacity ${SHEET_SNAP_DURATION_MS}ms ease`;
+    sheet.style.transition = `transform ${SHEET_SNAP_DURATION_MS}ms ease`;
+    overlay.style.opacity = '1';
+    sheet.style.transform = 'translateX(-50%) translateY(0)';
+
+    window.setTimeout(() => {
+      clearInlineStyles();
+    }, SHEET_SNAP_DURATION_MS);
+  };
+
+  handle.addEventListener('touchstart', handleStart, { passive: true });
+  document.addEventListener('touchmove', handleMove, { passive: false });
+  document.addEventListener('touchend', handleEnd);
+  document.addEventListener('touchcancel', handleEnd);
+
+  handle.addEventListener('mousedown', handleStart);
+  document.addEventListener('mousemove', handleMove as EventListener);
+  document.addEventListener('mouseup', handleEnd);
+};
+
+export const initBottomSheetDragToCloseById = (
+  overlayId: string,
+  onClose: () => void
+) => {
+  const overlay = document.getElementById(overlayId);
+  if (!overlay) return;
+
+  initBottomSheetDragToClose({
+    overlay,
+    onClose,
+  });
 };
