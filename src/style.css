@@ -541,6 +541,7 @@ li span {
     border-radius: 16px;
     border: 1px solid var(--color-border);
     transition: all 0.2s ease;
+    touch-action: pan-y;
 }
 
 .budget-item:hover {
@@ -1957,6 +1958,8 @@ li span {
     display: flex;
     justify-content: center;
     padding: 12px 0 8px;
+    touch-action: none;
+    cursor: grab;
 }
 
 .bottom-sheet-handle-bar {
@@ -3722,6 +3725,7 @@ li span {
 .expense-item {
     position: relative;
     overflow: hidden;
+    touch-action: pan-y;
 }
 
 .swipe-indicator.swipe-indicator-edit {
@@ -4308,6 +4312,7 @@ li span {
     background: var(--color-bg-card);
     border: 1px solid var(--color-border);
     border-radius: 12px;
+    touch-action: pan-y;
 }
 
 .category-item-left {
