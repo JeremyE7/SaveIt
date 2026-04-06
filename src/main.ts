@@ -18,6 +18,7 @@ import type { Expense } from "./types/Expense";
 import type { Income } from "./types/Income";
 import type { Subscription } from "./types/Subscription";
 import type { User } from "firebase/auth";
+import { renderTransactionCardHtml } from "./features/transactionCardRenderer";
 
 registerSW({ immediate: false });
 
@@ -765,51 +766,19 @@ const loadStatsExpenses = () => {
       </div>
     `;
   } else {
-    container.innerHTML = expenses.map(expense => {
-      const customCategories = getCustomCategories();
-      const categoryId = expense.category.replace('custom_', '');
-      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'expense');
-      
-      let cat: { label?: string; color?: string } | undefined;
-      let catIcon: string;
-
-      if (customCat) {
-        cat = { label: customCat.name, color: customCat.color };
-        catIcon = customCat.icon;
-      } else {
-        const expenseCatKey = expense.category as ExpenseGroup;
-        cat = expenseGroups[expenseCatKey];
-        catIcon = getCategoryIcon(expense.category);
-      }
-
-      const catColor = cat?.color || '#666';
-      const subscriptionBadge = expense.source === 'subscription'
-        ? '<span class="transaction-source-badge">Suscripción</span>'
-        : '';
-      const expenseDateText = formatStatDate(expense.date);
-
-      return `
-        <div class="expense-item stats-transaction-item" data-id="${expense.id}">
-          <div class="expense-item-left">
-            <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
-              <span class="material-symbols-outlined" style="font-size: 20px;">${catIcon}</span>
-            </div>
-            <div class="expense-item-details">
-              <div class="expense-item-title-row">
-                <p class="expense-item-title">${expense.detail || cat?.label || expense.category}</p>
-                ${subscriptionBadge}
-              </div>
-              <div class="expense-item-category-badge">
-                <span class="badge-dot" style="background: ${catColor};"></span>
-                ${cat?.label || expense.category}
-              </div>
-              <p class="stats-transaction-meta">${expenseDateText}</p>
-            </div>
-          </div>
-          <div class="expense-item-amount">-$${expense.amount.toFixed(2)}</div>
-        </div>
-      `;
-    }).join('');
+    const customCategories = getCustomCategories();
+    container.innerHTML = expenses
+      .map((expense) =>
+        renderTransactionCardHtml({
+          transaction: expense,
+          type: 'expense',
+          variant: 'stats',
+          customCategories,
+          metaText: formatStatDate(expense.date),
+          expenseIconMode: 'legacy',
+        }),
+      )
+      .join('');
 
     container.querySelectorAll('.expense-item').forEach((item) => {
       const expense = expenses.find(e => e.id === (item as HTMLElement).dataset.id);
@@ -849,43 +818,19 @@ const loadStatsIncomes = () => {
       </div>
     `;
   } else {
-    container.innerHTML = incomes.map(income => {
-      const customCategories = getCustomCategories();
-      const categoryId = income.category.replace('custom_', '');
-      const customCat = customCategories.find(c => c.id === categoryId && c.type === 'income');
-      let cat: { label?: string; color?: string } | undefined;
-      let catIcon: string;
-
-      if (customCat) {
-        cat = { label: customCat.name, color: customCat.color };
-        catIcon = customCat.icon;
-      } else {
-        const incomeCatKey = income.category as IncomeCategory;
-        cat = incomeCategories[incomeCatKey];
-        catIcon = getCategoryIcon(income.category);
-      }
-
-      const catColor = cat?.color || '#22c55e';
-      const incomeDateText = formatStatDate(income.date);
-      return `
-        <div class="expense-item stats-transaction-item" data-id="${income.id}">
-          <div class="expense-item-left">
-            <div class="expense-item-icon" style="background: ${catColor}20; color: ${catColor};">
-              <span class="material-symbols-outlined" style="font-size: 20px;">${catIcon}</span>
-            </div>
-            <div class="expense-item-details">
-              <p class="expense-item-title">${income.detail || cat?.label || income.category}</p>
-              <div class="expense-item-category-badge">
-                <span class="badge-dot" style="background: ${catColor};"></span>
-                ${cat?.label || income.category}
-              </div>
-              <p class="stats-transaction-meta">${incomeDateText}</p>
-            </div>
-          </div>
-          <div class="expense-item-amount income">+$${income.amount.toFixed(2)}</div>
-        </div>
-      `;
-    }).join('');
+    const customCategories = getCustomCategories();
+    container.innerHTML = incomes
+      .map((income) =>
+        renderTransactionCardHtml({
+          transaction: income,
+          type: 'income',
+          variant: 'stats',
+          customCategories,
+          metaText: formatStatDate(income.date),
+          expenseIconMode: 'legacy',
+        }),
+      )
+      .join('');
 
     container.querySelectorAll('.expense-item').forEach((item) => {
       const income = incomes.find(i => i.id === (item as HTMLElement).dataset.id);
@@ -2161,41 +2106,6 @@ const deleteCategory = (id: string) => {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) cleanup();
   });
-};
-
-const getCategoryIcon = (category: string): string => {
-  const iconMap: Record<string, string> = {
-    food_home: 'local_grocery_store',
-    food_restaurant: 'restaurant',
-    transport_public: 'directions_bus',
-    transport_fuel: 'local_gas_station',
-    transport_taxi: 'local_taxi',
-    housing_rent: 'home',
-    housing_utilities: 'bolt',
-    housing_internet: 'wifi',
-    shopping_clothes: 'checkroom',
-    shopping_electronics: 'devices',
-    health_medicine: 'medication',
-    health_doctor: 'medical_services',
-    entertainment_streaming: 'smart_display',
-    entertainment_games: 'sports_esports',
-    education_courses: 'school',
-    work_tools: 'build',
-    finance_fees: 'account_balance',
-    personal_care: 'spa',
-    cleaning: 'cleaning_services',
-    gifts: 'card_giftcard',
-    pets: 'pets',
-    travel: 'flight',
-    other: 'more_horiz',
-    salary: 'payments',
-    freelance: 'laptop_mac',
-    bonus: 'stars',
-    investment: 'trending_up',
-    gift: 'card_giftcard',
-    other_income: 'attach_money',
-  };
-  return iconMap[category] || 'receipt';
 };
 
 const renderCategoryBar = () => {
